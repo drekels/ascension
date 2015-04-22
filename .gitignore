@@ -1,6 +1,9 @@
 ignore
 *.py[cod]
 MANIFEST
+gimpfiles
+images
+data
 
 # C extensions
 *.so
@@ -27,3 +30,6 @@ pip-log.txt
 .coverage
 .tox
 nosetests.xml
+
+# Mac
+.DS_Store
