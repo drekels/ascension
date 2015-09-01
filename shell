@@ -1,0 +1,23 @@
+#! /usr/bin/env python -i
+import sys
+no_site_packages = [x for x in sys.path if "site-packages" not in x]
+sys.path = ["ignore/ascensionTestEnv/lib/python2.7/site-packages"] + no_site_packages
+
+
+import readline
+import atexit
+
+PYHIST = ".shell_history"
+try:
+    readline.read_history_file(PYHIST)
+except IOError:
+    pass
+atexit.register(readline.write_history_file, PYHIST)
+
+
+del PYHIST, readline, atexit, sys
+
+
+
+from ascension.game import Ascension
+Ascension.init_all()

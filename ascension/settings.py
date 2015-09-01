@@ -66,6 +66,11 @@ player_settings = SettingSet([
         "name": "key_bindings",
         "default": {
         },
+    },
+    {
+        "name": "scroll_speed",
+        "default": 400,
+        "parse": int,
     }
 
 
@@ -82,3 +87,7 @@ class AscensionConf(SettingBased):
             with open(CONF_FILE_NAME) as f:
                 values = yaml.load(f) or {}
         super(AscensionConf, self).__init__(**values)
+
+class PlayerConf(SettingBased):
+    __metaclass__ = Singleton
+    settingset = player_settings

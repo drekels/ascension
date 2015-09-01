@@ -1,5 +1,4 @@
 #! /usr/bin/env pythonw
-
 import sys
 no_site_packages = [x for x in sys.path if "site-packages" not in x]
 sys.path = ["ignore/ascensionTestEnv/lib/python2.7/site-packages"] + no_site_packages

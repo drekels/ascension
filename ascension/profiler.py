@@ -16,7 +16,7 @@ REPORT_MESSAGES = [
     "  {time_passed} passed since last report",
     "  {run_count} times ran",
     "  {max_time} max",
-    "  {max_time} min",
+    "  {min_time} min",
     "  {average_time} average",
 ]
 TIME_FORMAT = "{}s {:>3}ms {:>3}\xces"

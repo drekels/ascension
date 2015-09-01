@@ -4,6 +4,7 @@ import pyglet
 import logging
 import yaml
 from pyglet import gl
+from sortedcontainers import SortedList
 
 
 LOG = logging.getLogger(__name__)
@@ -11,11 +12,11 @@ LOG = logging.getLogger(__name__)
 
 class Sprite(object):
 
-    def __init__(self, x=0, y=0, component_name=None, scale=2):
+    def __init__(self, x=0, y=0, component_name=None, level=0):
+        self.level = level
         self.x = x
         self.y = y
         self.component = None
-        self.scale = scale
         if component_name:
             self.set_component(component_name)
 
@@ -43,24 +44,30 @@ class Sprite(object):
         self.component = SpriteManager.get_component(component_name)
         self.compoennt_name = component_name
 
-    def draw(self):
+    def draw(self, offset, scale):
         if not self.component:
             return
         texture = SpriteManager.texture
-        tw, th = float(texture.width), float(texture.height)
-        w, h = self.component_width * self.scale, self.component_height * self.scale
-        xn, yn = self.component_x / tw, self.component_y / th
-        wn, hn = self.component_width / tw, self.component_height / th
-        x, y, z = self.x - w / 2, self.y - h / 2, 0
+        texture_width, texture_height = float(texture.width), float(texture.height)
+        component_x = self.component_x / texture_width
+        component_y = self.component_y / texture_height
+        component_width = self.component_width / texture_width
+        component_height = self.component_height / texture_height
+        width = self.component_width * scale
+        height = self.component_height * scale
+        offset_x, offset_y = offset
+        draw_x = (self.x  + offset_x) * scale - width / 2
+        draw_y = (self.y + offset_y) * scale - height / 2
+        draw_z = 0
         array = (gl.GLfloat * 32)(
-            xn, yn, 0.0, 1.,
-            x, y, z, 1.,
-            xn + wn, yn, 0.0, 1.,
-            x + w, y, z, 1.,
-            xn + wn, yn + hn, 0.0, 1.,
-            x + w, y + h, z, 1.,
-            xn, yn + hn, 0.0, 1.,
-            x, y + h, z, 1.
+            component_x, component_y, 0.0, 1.,
+            draw_x, draw_y, draw_z, 1.,
+            component_x + component_width, component_y, 0.0, 1.,
+            draw_x + width, draw_y, draw_z, 1.,
+            component_x + component_width, component_y + component_height, 0.0, 1.,
+            draw_x + width, draw_y + height, draw_z, 1.,
+            component_x, component_y + component_height, 0.0, 1.,
+            draw_x, draw_y + height, draw_z, 1.
         )
         gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
         gl.glPushClientAttrib(gl.GL_CLIENT_VERTEX_ARRAY_BIT)
@@ -68,12 +75,27 @@ class Sprite(object):
         gl.glDrawArrays(gl.GL_QUADS, 0, 4)
         gl.glPopClientAttrib()
 
+    def __cmp__(self, other):
+        funcs = [lambda x: x.level, lambda x: -x.y, lambda x: id(x)]
+        for func in funcs:
+            value = func(self).__cmp__(func(other))
+            if value != 0:
+                return value
+        return 0
+
+    def __unicode__(self):
+        return "Sprite(x={x}, y={y}, {component})".format(
+            component=self.component_name, **self.__dict__
+        )
+
 
 class SpriteManager(object):
     __metaclass__ = Singleton
 
     def __init__(self):
         self.load_atlas()
+        self.sprites = SortedList()
+        self.scale = 2
 
     def load_atlas(self):
         self.image = pyglet.image.load(conf.atlas_image)
@@ -98,3 +120,13 @@ class SpriteManager(object):
 
     def get_component(self, component_name):
         return self.components[component_name]
+
+    def add_sprite(self, sprite):
+        self.sprites.add(sprite)
+
+    def draw_sprites(self, offset):
+        SpriteManager.enable_gl_texture()
+        offset = [x / self.scale for x in offset]
+        for sprite in self.sprites:
+            sprite.draw(offset, self.scale)
+        SpriteManager.disable_gl_texture()

@@ -15,14 +15,11 @@ SAMPLE_ENV_PYTHON := $(SAMPLE_ENV)/bin/python
 
 TEST_ENV := $(IGNORE_DIRECTORY)/$(DISTRIBUTION_NAME)TestEnv
 TEST_ENV_PYTHON := $(TEST_ENV)/bin/python
-TEST_ENV_PYTHON_64 := $(TEST_ENV)/bin/python-64
 TEST_ENV_PIP := $(TEST_ENV)/bin/pip
 TEST_ENV_NOSE := $(TEST_ENV)/bin/nosetests
 TEST_ENV_SITE_PACKAGES := $(TEST_ENV)/lib/python2.7/site-packages
 
 VIRTUALENV := virtualenv
-
-PYGAME := $(shell echo $(PYGAME))
 
 DIST_DIR := dist/
 
@@ -36,9 +33,12 @@ dist: setup.py $(PYTHON_FILES) requirements.txt README MANIFEST.in MAKEFILE
 	rm -f -r dist
 	/usr/bin/env python setup.py sdist 
 
+data:
+	mkdir data
+
 .PHONY: atlas 
 atlas: $(ATLAS)
-$(ATLAS): $(IMAGE_FILES) $(TOOL_SCRIPTS)
+$(ATLAS): $(IMAGE_FILES) $(TOOL_SCRIPTS) data
 	$(TEST_ENV_PYTHON) $(TOOL_DIR)/make_atlas.py $(IMAGE_DIR)
 
 .PHONY: sampleEnv
@@ -53,9 +53,6 @@ testEnv: $(TEST_ENV)
 $(TEST_ENV): requirements.txt MAKEFILE $(IGNORE_DIRECTORY)
 	rm -f -r $(TEST_ENV)
 	$(VIRTUALENV) $(TEST_ENV) --no-site-packages
-	# mv $(TEST_ENV_PYTHON) $(TEST_ENV_PYTHON_64)
-	#lipo -remove x86_64 $(TEST_ENV_PYTHON_64) -output $(TEST_ENV_PYTHON)
-	ln -s $(PYGAME) $(TEST_ENV_SITE_PACKAGES)/pygame
 	$(TEST_ENV_PIP) install -r requirements.txt
 	$(TEST_ENV_PIP) install mock
 	$(TEST_ENV_PIP) install unittest2

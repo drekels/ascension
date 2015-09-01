@@ -24,13 +24,17 @@ class ParamDefinition(object):
     def __init__(self, param_definition):
         self.name = param_definition["name"]
         self.default = param_definition.get("default", NO_DEFAULT)
+        self.parse = param_definition.get("parse", None)
 
     def getvalue(self, input_value):
+        value = self.default
         if input_value != NO_VALUE:
-            return input_value
+            value = input_value
         if self.default == NO_DEFAULT:
             raise TypeError("The parameter '{}' requires a value".format(self.name))
-        return self.default
+        if self.parse:
+            value = self.parse(value)
+        return value
 
 
 class SettingSet(object):

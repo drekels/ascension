@@ -1,2 +1,17 @@
-key_bindings: 
-
+logging:
+    version: 1
+    loggers:
+        ascension:
+            handlers:
+                - console
+            level: INFO
+    handlers:
+        console: 
+            class: logging.StreamHandler
+            formatter: console
+    formatters:
+        console:
+            (): pykfs.kfslog.KFSFormatter
+            fmt: "> {timeplus} > {nameplus} > {levelplus} {message}"
+            color: true
+target_frame_rate: 30
