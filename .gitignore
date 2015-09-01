@@ -1,7 +1,6 @@
 ignore
 *.py[cod]
 MANIFEST
-gimpfiles
 images
 data
 .shell_history
