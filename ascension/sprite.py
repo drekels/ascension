@@ -17,6 +17,7 @@ class Sprite(object):
         self.x = x
         self.y = y
         self.component = None
+        self.visible = True
         if component_name:
             self.set_component(component_name)
 
@@ -45,7 +46,7 @@ class Sprite(object):
         self.compoennt_name = component_name
 
     def draw(self, offset, scale):
-        if not self.component:
+        if not self.component or not self.visible:
             return
         texture = SpriteManager.texture
         texture_width, texture_height = float(texture.width), float(texture.height)
@@ -58,7 +59,7 @@ class Sprite(object):
         offset_x, offset_y = offset
         draw_x = (self.x  + offset_x) * scale - width / 2
         draw_y = (self.y + offset_y) * scale - height / 2
-        draw_z = 0
+        draw_z = getattr(self, 'z', 0)
         array = (gl.GLfloat * 32)(
             component_x, component_y, 0.0, 1.,
             draw_x, draw_y, draw_z, 1.,
@@ -85,8 +86,11 @@ class Sprite(object):
 
     def __unicode__(self):
         return "Sprite(x={x}, y={y}, {component})".format(
-            component=self.component_name, **self.__dict__
+            component=self.component_name, x=self.x, y=self.y
         )
+
+    def __str__(self):
+        return unicode(self)
 
 
 class SpriteManager(object):

@@ -10,6 +10,7 @@ from ascension.profiler import ProfilerManager
 from ascension.keyboard import KeyboardHandler
 from ascension.sprite import SpriteManager
 from ascension.tilemap import TileMap
+from ascension.unit import UnitSet
 
 
 GREY = (100, 100, 100)
@@ -26,7 +27,7 @@ SLOW_FRAME_MESSAGE = (
 
 SINGLETONS = [
     AscensionConf, PlayerConf, ProfilerManager, SpriteManager, MainWindowManager,
-    KeyboardHandler, TileMap
+    KeyboardHandler, TileMap, UnitSet
 ]
 TICK_LISTENERS = [
     KeyboardHandler
@@ -46,6 +47,10 @@ class Ascension(object):
             MainWindowManager.check_add_tick_listener(listener)
         TileMap.generate_square()
         TileMap.add_tile_sprites(SpriteManager)
+        UnitSet.new_unit(1, 1, "spear")
+        UnitSet.new_unit(-1, -1, "bow")
+        UnitSet.anchor_sprites(TileMap)
+        UnitSet.add_unit_sprites(SpriteManager)
 
 
     @classmethod

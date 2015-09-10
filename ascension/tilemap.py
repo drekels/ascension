@@ -6,6 +6,8 @@ from ascension.sprite import Sprite
 
 class TileMap(object):
     __metaclass__ = Singleton
+    unit_z = 0.5
+    tile_z = 0
 
 
     def __init__(self):
@@ -77,9 +79,7 @@ class Tile(object):
         return self.sprite
 
     def make_sprite(self):
-        self.sprite = Sprite(component_name="grassland.png")
-
-
+        self.sprite = Sprite(component_name="terrain.grassland")
 
 
 class SimpleHexMoveRules(object):
