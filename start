@@ -5,4 +5,12 @@ sys.path = ["ignore/ascensionTestEnv/lib/python2.7/site-packages"] + no_site_pac
 
 
 from ascension.game import Ascension
-Ascension.start()
+from ascension.testrun.anim import AnimTest
+
+run_map = {
+    "start": Ascension,
+    "anim": AnimTest,
+}
+
+token = len(sys.argv) > 1 and sys.argv[1] or "start"
+run_map[token].start()

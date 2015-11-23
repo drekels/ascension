@@ -8,7 +8,7 @@ from ascension.settings import AscensionConf, PlayerConf
 from ascension.window import MainWindowManager
 from ascension.profiler import ProfilerManager
 from ascension.keyboard import KeyboardHandler
-from ascension.sprite import SpriteManager
+from ascension.ascsprite import SpriteManager
 from ascension.tilemap import TileMap
 from ascension.unit import UnitSet
 
@@ -25,26 +25,35 @@ SLOW_FRAME_MESSAGE = (
     "microseconds "
 )
 
-SINGLETONS = [
-    AscensionConf, PlayerConf, ProfilerManager, SpriteManager, MainWindowManager,
-    KeyboardHandler, TileMap, UnitSet
-]
-TICK_LISTENERS = [
-    KeyboardHandler
-]
-
-
 class Ascension(object):
     __metaclass__ = Singleton
+    components = [
+        AscensionConf, PlayerConf, ProfilerManager, SpriteManager, MainWindowManager,
+        KeyboardHandler, TileMap, UnitSet
+    ]
+    tick_listeners = [
+        KeyboardHandler, SpriteManager
+    ]
 
     @classmethod
-    def init_all(cls):
-        for single in [Ascension] + SINGLETONS:
+    def _init_all(cls):
+        for single in [cls] + cls.components:
             if not single.instance:
                 single.reset()
         MainWindowManager.set_keyboard_manager(KeyboardHandler)
-        for listener in TICK_LISTENERS:
+        for listener in cls.tick_listeners:
             MainWindowManager.check_add_tick_listener(listener)
+
+    @classmethod
+    def start(cls):
+        cls._init_all()
+        cls.initialize()
+        cls.run()
+
+    def __init__(self, *args, **kwargs):
+        super(Ascension, self).__init__(*args, **kwargs)
+
+    def initialize(self):
         TileMap.generate_square()
         TileMap.add_tile_sprites(SpriteManager)
         UnitSet.new_unit(1, 1, "spear")
@@ -52,21 +61,11 @@ class Ascension(object):
         UnitSet.anchor_sprites(TileMap)
         UnitSet.add_unit_sprites(SpriteManager)
 
-
-    @classmethod
-    def start(cls):
-        cls.init_all()
-        Ascension.instance.run()
-
-    def __init__(self, *args, **kwargs):
-        super(Ascension, self).__init__(*args, **kwargs)
-
     def run(self):
         logging.config.dictConfig(AscensionConf.logging)
         LOG.info("== Starting ASCENSION {} ==".format(ascension.get_version()))
         MainWindowManager.open()
         pyglet.app.run()
-
 
 
 if __name__ == "__main__":

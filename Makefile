@@ -6,8 +6,12 @@ IMAGE_DIR := images
 
 PYTHON_FILES = $(shell find . -name \*.py -not -path "./$(TOOL_DIR)/*" -not -path \
                "./$(TOOL_DIR)/*" -not -path "./test/*" -not -name setup.py)
+
+MANAGE_SCRIPT = manage.py
+MAKE_ATLAS_COMMAND = make_atlas
 TOOL_SCRIPTS = $(shell find $(TOOL_DIR) -name \*.py)
 IMAGE_FILES = $(shell find $(IMAGE_DIR) -name \*.png)
+ANIMATION_META = $(shell find $(IMAGE_DIR) -name \*.yaml)
 
 SAMPLE_ENV := $(IGNORE_DIRECTORY)/$(DISTRIBUTION_NAME)SampleEnv
 SAMPLE_ENV_PIP := $(SAMPLE_ENV)/bin/pip
@@ -37,9 +41,9 @@ data:
 	mkdir data
 
 .PHONY: atlas 
-atlas: $(ATLAS)
-$(ATLAS): $(IMAGE_FILES) $(TOOL_SCRIPTS) data
-	$(TEST_ENV_PYTHON) $(TOOL_DIR)/make_atlas.py $(IMAGE_DIR)
+atlas: $(ATLAS) 
+$(ATLAS): $(IMAGE_FILES) $(TOOL_SCRIPTS) data $(ANIMATION_META) $(MANAGE_SCRIPT) MAKEFILE
+	$(TEST_ENV_PYTHON) $(MANAGE_SCRIPT) $(MAKE_ATLAS_COMMAND) $(IMAGE_DIR)
 
 .PHONY: sampleEnv
 sampleEnv: $(SAMPLE_ENV)

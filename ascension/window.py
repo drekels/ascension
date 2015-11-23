@@ -10,7 +10,7 @@ from pyglet import clock
 from ascension.util import Singleton
 from ascension.settings import AscensionConf as conf
 from ascension.profiler import ProfilerManager
-from ascension.sprite import Sprite, SpriteManager
+from ascension.ascsprite import SpriteManager
 
 
 LOG = logging.getLogger(__name__)
@@ -32,6 +32,7 @@ class MainWindowManager(object):
         self.pyglet_window = None
         self.count = 0
         self.tick_listeners = []
+        self.set_background_color()
 
     def tick(self, time_passed):
         LOG.debug("Tick called, {:.4f}s".format(time_passed))
@@ -68,7 +69,7 @@ class MainWindowManager(object):
 
     def on_draw(self):
         ProfilerManager.start("MAIN_WINDOW_DRAW", targets=self.profiler_targets)
-        pyglet.gl.glColor4f(0.05, 0.05, 0.05, 1)
+        pyglet.gl.glColor4f(*self.background_color)
         drawRect(0, 0, self.width, self.height)
         pyglet.gl.glColor4f(1, 1, 1, 1)
         SpriteManager.draw_sprites(self.get_window_offset())
@@ -83,6 +84,9 @@ class MainWindowManager(object):
     def check_add_tick_listener(self, listener):
         if listener not in self.tick_listeners:
             self.tick_listeners.append(listener)
+
+    def set_background_color(self, r=0.05, g=0.05, b=0.05):
+        self.background_color = (r, g, b, 1)
 
 
 def drawRect(x, y=None, width=None, height=None):

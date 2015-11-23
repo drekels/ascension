@@ -1,5 +1,5 @@
 from ascension.util import Singleton
-from ascension.sprite import Sprite
+from ascension.ascsprite import Sprite
 
 
 class UnitSet(object):

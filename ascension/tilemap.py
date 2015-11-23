@@ -1,7 +1,7 @@
 from ascension.util import Singleton
 from Queue import PriorityQueue
 import math
-from ascension.sprite import Sprite
+from ascension.ascsprite import Sprite
 
 
 class TileMap(object):
