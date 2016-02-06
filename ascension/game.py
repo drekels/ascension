@@ -8,6 +8,7 @@ from ascension.settings import AscensionConf, PlayerConf
 from ascension.window import MainWindowManager
 from ascension.profiler import ProfilerManager
 from ascension.keyboard import KeyboardHandler
+from ascension.mouse import MouseHandler
 from ascension.ascsprite import SpriteManager
 from ascension.tilemap import TileMap
 from ascension.unit import UnitSet
@@ -29,7 +30,7 @@ class Ascension(object):
     __metaclass__ = Singleton
     components = [
         AscensionConf, PlayerConf, ProfilerManager, SpriteManager, MainWindowManager,
-        KeyboardHandler, TileMap, UnitSet
+        KeyboardHandler, MouseHandler, TileMap, UnitSet
     ]
     tick_listeners = [
         KeyboardHandler, SpriteManager
@@ -41,6 +42,7 @@ class Ascension(object):
             if not single.instance:
                 single.reset()
         MainWindowManager.set_keyboard_manager(KeyboardHandler)
+        MainWindowManager.set_mouse_manager(MouseHandler)
         for listener in cls.tick_listeners:
             MainWindowManager.check_add_tick_listener(listener)
 
@@ -56,8 +58,10 @@ class Ascension(object):
     def initialize(self):
         TileMap.generate_square()
         TileMap.add_tile_sprites(SpriteManager)
-        UnitSet.new_unit(1, 1, "spear")
+        UnitSet.new_unit(0, -1, "spear")
         UnitSet.new_unit(-1, -1, "bow")
+        UnitSet.new_unit(-2, -1, "sword")
+        UnitSet.new_unit(0, 0, "sword")
         UnitSet.anchor_sprites(TileMap)
         UnitSet.add_unit_sprites(SpriteManager)
 

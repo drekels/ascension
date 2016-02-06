@@ -32,7 +32,7 @@ class ProfilerBlock(object):
 
     def __init__(self, name, targets=None, report_every=5):
         self.name = name
-        self.targets = targets
+        self.targets = targets or []
         self.report_every = report_every
         self.start_time = None
         self.schedule_report()

@@ -53,6 +53,12 @@ class MainWindowManager(object):
             LOG.info("Binding keyboard events set")
             keyboard_manager.bind_keyboard_events(self.pyglet_window)
 
+    def set_mouse_manager(self, mouse_manager):
+        self.mouse_manager = mouse_manager
+        if self.pyglet_window:
+            LOG.info("Binding mouse events set")
+            mouse_manager.bind_mouse_events(self.pyglet_window)
+
     def move(self, x, y):
         self.x += x
         self.y += y
@@ -65,7 +71,10 @@ class MainWindowManager(object):
         if self.keyboard_manager:
             LOG.info("Binding keyboard events open")
             self.keyboard_manager.bind_keyboard_events(self.pyglet_window)
-        clock.schedule_interval(self.tick, 1.0 / (conf.target_frame_rate * 3))
+        if self.mouse_manager:
+            LOG.info("Binding mouse events set")
+            self.mouse_manager.bind_mouse_events(self.pyglet_window)
+        clock.schedule_interval(self.tick, 1.0 / conf.target_frame_rate)
 
     def on_draw(self):
         ProfilerManager.start("MAIN_WINDOW_DRAW", targets=self.profiler_targets)

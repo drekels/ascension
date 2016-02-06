@@ -1,5 +1,6 @@
 from ascension.util import Singleton
 from ascension.settings import AscensionConf as conf
+from ascension.profiler import ProfilerManager
 import pyglet
 import logging
 import yaml
@@ -8,9 +9,14 @@ from sprite.component import SpriteComponent
 from sprite.animation import SpriteAnimation, SpriteAnimationPlayer, SpriteAnimationStage
 from datetime import timedelta
 from math import floor
+from sortedcontainers import SortedList
 
 
 LOG = logging.getLogger(__name__)
+
+
+TILE_GROUP = 100
+UNIT_GROUP = 200
 
 
 class AscSpriteComponent(SpriteComponent):
@@ -67,26 +73,30 @@ class AscAnimation(SpriteAnimation):
 
 class Sprite(object):
 
-    def __init__(self, x=0, y=0, component_name=None, level=0):
+    def __init__(self, x=0, y=0, z=0, component_name=None, level=0, anchor="center"):
         self.level = level
         self.x = floor(x)
         self.y = floor(y)
+        self.z = z
         self.component = None
         self.visible = True
         self.animation = None
         self.animation_player = None
         self.displacement_x = 0
         self.displacement_y = 0
-        self.anchor = 0
+        self.anchor = anchor
         if component_name:
-            self.set_component(component_name)
+            self.set_component(component_name, anchor=anchor)
 
     def __cmp__(self, other):
-        funcs = [lambda x: x.level, lambda x: -x.y, lambda x: id(x)]
+        funcs = [lambda x: -x.z, lambda x: -x.y, lambda x: id(x)]
         for func in funcs:
-            value = func(self).__cmp__(func(other))
-            if value != 0:
-                return value
+            this_value = func(self)
+            other_value = func(other)
+            if this_value < other_value:
+                return -1
+            elif this_value > other_value:
+                return 1
         return 0
 
     def __unicode__(self):
@@ -156,7 +166,7 @@ class Sprite(object):
         draw_y = (
             (self.y + self.displacement_y - self.component_height + self.anchor_y + offset_y) * scale
         )
-        draw_z = getattr(self, 'z', 0)
+        draw_z = 0.0
         array = (gl.GLfloat * 32)(
             component_x, component_y, 0.0, 1.,
             draw_x, draw_y, draw_z, 1.,
@@ -201,13 +211,45 @@ class Sprite(object):
             self.animation = None
 
 
+class SpriteGroup(object):
+
+    def __init__(self, groupnum, keep_sorted=True):
+        self.groupnum = groupnum
+        self.keep_sorted = keep_sorted
+        self.sprites = []
+
+    def update(self):
+        if self.keep_sorted:
+            self.sort()
+
+    def add_sprite(self, sprite):
+        self.sprites.append(sprite)
+
+    def remove_sprite(self, sprite):
+        self.sprites.remove(sprite)
+
+    def sort(self):
+        for i in range(1, len(self.sprites)):
+            val = self.sprites[i]
+            j = i - 1
+            while (j >= 0) and (self.sprites[j] > val):
+                self.sprites[j+1] = self.sprites[j]
+                j = j - 1
+            self.sprites[j+1] = val
+
+
 class SpriteManager(object):
     __metaclass__ = Singleton
 
     def __init__(self):
         self.load_atlas()
         self.sprites = {}
+        self.sprite_groups = {}
+        self.sprite_group_nums = []
         self.scale = 2.0
+        self.first = True
+        self.add_sprite_group(TILE_GROUP, keep_sorted=False)
+        self.add_sprite_group(UNIT_GROUP, keep_sorted=True)
 
     def load_atlas(self):
         self.image = pyglet.image.load(conf.atlas_image)
@@ -240,16 +282,42 @@ class SpriteManager(object):
     def get_component(self, component_name):
         return self.components[component_name]
 
-    def add_sprite(self, sprite):
-        self.sprites[sprite] = sprite
+    def add_sprite_group(self, groupnum, *args, **kwargs):
+        if groupnum in self.sprite_group_nums:
+            raise KeyError(
+                "Sprite Group number '{}' is already registered with the SpriteManager"
+                .format(groupnum)
+            )
+        group = SpriteGroup(groupnum, *args, **kwargs)
+        self.sprite_groups[groupnum] = group
+        self.sprite_group_nums.append(groupnum)
+        self.sprite_group_nums.sort()
+
+    def add_sprite(self, group, sprite):
+        self.sprites[sprite] = group
+        self.sprite_groups[group].add_sprite(sprite)
+
+    def remove_sprite(self, sprite):
+        group = self.sprites[sprite]
+        self.sprite_groups[group].remove_sprite(sprite)
 
     def draw_sprites(self, offset):
         SpriteManager.enable_gl_texture()
         offset = [x / self.scale for x in offset]
-        for sprite in self.sprites.values():
-            sprite.draw(offset, self.scale)
+        self.update_sprite_groups()
+        for groupnum in self.sprite_group_nums:
+            group = self.sprite_groups[groupnum]
+            spritelist = group.sprites
+            for sprite in spritelist:
+                sprite.draw(offset, self.scale)
         SpriteManager.disable_gl_texture()
 
     def tick(self, time_passed):
-        for sprite in self.sprites.values():
+        for sprite in self.sprites.keys():
             sprite.tick(time_passed)
+
+    def update_sprite_groups(self):
+        ProfilerManager.start("SORT_SPRITES")
+        for sprite_group in self.sprite_groups.values():
+            sprite_group.update()
+        ProfilerManager.stop("SORT_SPRITES")

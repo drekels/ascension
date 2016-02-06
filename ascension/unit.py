@@ -1,5 +1,10 @@
 from ascension.util import Singleton
-from ascension.ascsprite import Sprite
+from ascension.ascsprite import Sprite, UNIT_GROUP
+from ascension.tilemap import TileMap
+import logging
+
+
+LOG = logging.getLogger(__name__)
 
 
 class UnitSet(object):
@@ -19,7 +24,7 @@ class UnitSet(object):
             raise Exception("Cannot anchor sprites with no tilemap set")
         for (x, y), units in self.units.items():
             tilesprite = self.tilemap.gettile(x, y).sprite
-            x_offset = -15 * len(units)
+            x_offset = -15 * (len(units) - 1)
             for unit in units:
                 unit.sprite.x = tilesprite.x + x_offset
                 unit.sprite.y = tilesprite.y
@@ -41,6 +46,11 @@ class UnitSet(object):
             self.units[(unit.x, unit.y)] = []
         self.units[(unit.x, unit.y)].append(unit)
 
+    def move_unit(self, unit, new_x, new_y):
+        LOG.info("move {} to ({}, {})".format(unit, new_x, new_y))
+        if not TileMap.moverules.isadjacent(unit.x, unit.y, new_x, new_y):
+            LOG.info("Move is not adjacent, ignoring move".format(unit, new_x, new_y))
+
 
 class Unit(object):
 
@@ -49,16 +59,23 @@ class Unit(object):
         self.y = y
         self.name = name
         self.make_sprite()
+        self.moving = False
 
     def add_sprite(self, sprite_manager):
-        sprite_manager.add_sprite(self.sprite)
+        sprite_manager.add_sprite(UNIT_GROUP, self.sprite)
 
 
     def make_sprite(self):
         stand_right = self.get_component("stand_right")
-        self.sprite = Sprite(component_name=stand_right)
+        self.sprite = Sprite(component_name=stand_right, anchor="stand")
 
     def get_component(self, name):
         component_path = ".".join(["unit", self.name, name])
         return component_path
+
+    def __unicode__(self):
+        return "Unit({x}, {y}, {name})".format(**self.__dict__)
+
+    def __str__(self):
+        return unicode(self)
 

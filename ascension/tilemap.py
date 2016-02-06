@@ -1,16 +1,17 @@
 from ascension.util import Singleton
 from Queue import PriorityQueue
 import math
-from ascension.ascsprite import Sprite
+from ascension.ascsprite import TILE_GROUP, Sprite
 
 
 class TileMap(object):
     __metaclass__ = Singleton
-    unit_z = 0.5
-    tile_z = 0
+    unit_z = 0.3
+    tile_z = 0.4
 
 
     def __init__(self):
+        self.moverules = SimpleHexMoveRules()
         self.reset_tiles()
 
     def reset_tiles(self):
@@ -64,8 +65,8 @@ class TileMap(object):
         s = self.tiles[x][y].get_sprite()
         x_position = anchor[0] + x * (s.component_width - self.get_horz_point_width())
         y_position = anchor[1] + y * s.component_height + x * self.get_vert_x_shift()
-        s.x, s.y = x_position, y_position
-        sprite_manager.add_sprite(s)
+        s.x, s.y, s.z = x_position, y_position, self.tile_z
+        sprite_manager.add_sprite(TILE_GROUP, s)
 
 
 class Tile(object):

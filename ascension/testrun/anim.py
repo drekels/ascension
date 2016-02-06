@@ -30,6 +30,7 @@ class AnimTest(Ascension):
         self.animations = []
         for animation in SpriteManager.animations.values():
             self.animations.append(animation)
+        self.animations.sort(key=lambda x: x.name)
 
     def determine_cell_size(self):
         max_width = 0
@@ -41,12 +42,16 @@ class AnimTest(Ascension):
         self.cell_height = max_height + BUFFER[1] * 2.0
 
     def add_sprites(self):
-        x = ceil((-MainWindowManager.width / SpriteManager.scale + self.cell_width) / 2)
-        y = floor((MainWindowManager.height / SpriteManager.scale - self.cell_height) / 2)
+        window_width = MainWindowManager.width / SpriteManager.scale
+        window_height = MainWindowManager.height / SpriteManager.scale
+        start_x = ceil((-window_width + self.cell_width) / 2)
+        x = start_x
+        y = floor((window_height - self.cell_height) / 2)
         for animation in self.animations:
             self.add_sprite(animation, x, y)
             x += self.cell_width
-            if x + self.cell_width / 2 > MainWindowManager.width / 2:
+            if x + self.cell_width / 2 > window_width / 2:
+                x = start_x
                 y -= self.cell_height
 
     def add_sprite(self, animation, x, y):
