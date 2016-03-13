@@ -1,6 +1,6 @@
 from ascension.game import Ascension
 from ascension.window import MainWindowManager
-from ascension.ascsprite import SpriteManager, Sprite
+from ascension.ascsprite import SpriteManager, Sprite, UNIT_GROUP
 from math import ceil, floor
 
 
@@ -57,4 +57,4 @@ class AnimTest(Ascension):
     def add_sprite(self, animation, x, y):
         newsprite = Sprite(x=x, y=y)
         newsprite.start_animation(animation, end_callback=RepeatCallback(newsprite, animation))
-        SpriteManager.add_sprite(newsprite)
+        SpriteManager.add_sprite(UNIT_GROUP, newsprite)

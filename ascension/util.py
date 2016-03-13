@@ -2,6 +2,10 @@ NO_VALUE = "NO_VALUE"
 NO_DEFAULT = "NO_VALUE"
 
 
+class IllegalActionException(Exception):
+    pass
+
+
 class Singleton(type):
     instance = None
 
@@ -51,3 +55,13 @@ class SettingBased(object):
 
     def __init__(self, **kwargs):
         self.settingset.processvalues(self, kwargs)
+
+
+def insert_sort(almost_sorted):
+    for i in range(1, len(almost_sorted)):
+        val = almost_sorted[i]
+        j = i - 1
+        while (j >= 0) and (almost_sorted[j] > val):
+            almost_sorted[j+1] = almost_sorted[j]
+            j = j - 1
+        almost_sorted[j+1] = val

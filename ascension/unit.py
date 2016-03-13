@@ -1,6 +1,7 @@
-from ascension.util import Singleton
-from ascension.ascsprite import Sprite, UNIT_GROUP
+from ascension.util import Singleton, insert_sort, IllegalActionException
+from ascension.ascsprite import SpriteManager, Sprite, UNIT_GROUP
 from ascension.tilemap import TileMap
+from ascension.settings import PlayerConf
 import logging
 
 
@@ -11,59 +12,92 @@ class UnitSet(object):
     __metaclass__ = Singleton
 
     def __init__(self):
-        self.units = {}
+        self.unit_groups = []
 
-    def new_unit(self, *args, **kwargs):
-        unit = Unit(*args, **kwargs)
-        self.add_unit(unit)
+    def add_unit_group(self, unit_group):
+        self.unit_groups.append(unit_group)
+        unit_group.add_sprites(SpriteManager)
 
-    def anchor_sprites(self, tilemap=None):
-        if tilemap:
-            self.tilemap = tilemap
-        if not self.tilemap:
-            raise Exception("Cannot anchor sprites with no tilemap set")
-        for (x, y), units in self.units.items():
-            tilesprite = self.tilemap.gettile(x, y).sprite
-            x_offset = -15 * (len(units) - 1)
-            for unit in units:
-                unit.sprite.x = tilesprite.x + x_offset
-                unit.sprite.y = tilesprite.y
-                unit.sprite.z = tilemap.unit_z
-                x_offset += 30
 
-    def add_unit_sprites(self, sprite_manager):
-        for units in self.units.values():
-            for unit in units:
-                unit.add_sprite(sprite_manager)
+class UnitGroup(object):
 
-    def get_units_at(self, x, y):
-        if (x, y) not in self.units:
-            return []
-        return self.units[(x, y)]
+    def __init__(self, x, y, units=[]):
+        self.x = x
+        self.y = y
+        self.units = []
+        self.intransit = False
+        self.facing = "right"
+        for unit_name in units:
+            self.add_unit(unit_name)
 
-    def add_unit(self, unit):
-        if (unit.x, unit.y) not in self.units:
-            self.units[(unit.x, unit.y)] = []
-        self.units[(unit.x, unit.y)].append(unit)
+    def add_unit(self, name):
+        unit = Unit(name, self)
+        self.units.append(unit)
+        insert_sort(self.units)
 
-    def move_unit(self, unit, new_x, new_y):
-        LOG.info("move {} to ({}, {})".format(unit, new_x, new_y))
-        if not TileMap.moverules.isadjacent(unit.x, unit.y, new_x, new_y):
-            LOG.info("Move is not adjacent, ignoring move".format(unit, new_x, new_y))
+    def add_sprites(self, sprite_manager):
+        px, py = self.get_tile_position()
+        for unit in self.units:
+            sprite = unit.sprite
+            sprite.x = px
+            sprite.y = py
+            sprite_manager.add_sprite(UNIT_GROUP, sprite)
+
+    def get_tile_position(self):
+        return TileMap.get_tile_position(self.x, self.y)
+
+    def move(self, x, y):
+        if self.intransit:
+            raise IllegalActionException(
+                "Cannot move unit group {}, it is intransit".format(self)
+            )
+        if not TileMap.hastile(x, y):
+            raise IllegalActionException(
+                "Cannot move to tile ({}, {}) because it does not exist".format(
+                x, y)
+            )
+        if not TileMap.moverules.isadjacent(self.x, self.y, x, y):
+            raise IllegalActionException(
+                "Cannot move from ({}, {}) to ({}, {}) as they are not adjacent".format(
+                self.x, self.y, x, y)
+            )
+        self.facing, direction, speed = self.get_move_direction(x, y)
+        self.x, self.y = x, y
+        self.intransit = True
+        self.units_in_transit = []
+        position = TileMap.get_tile_position(x, y)
+        for unit in self.units:
+            self.units_in_transit.append(unit)
+            unit.move_to(position, direction, self.facing, speed)
+
+    def get_move_direction(self, x, y):
+        direction = (x - self.x, y - self.y)
+        unit_speed = PlayerConf.unit_move_speed
+        vert_speed = unit_speed * TileMap.get_vert_speed_multiplier()
+        diag_speed = unit_speed * TileMap.get_diagonal_speed_multiplier()
+        values = {
+            (1, 0): ("right", "bright", diag_speed),
+            (1, -1): ("right", "right", diag_speed),
+            (0, -1): (self.facing, self.facing, vert_speed),
+            (-1, 0): ("left", "left", diag_speed),
+            (-1, 1): ("left", "bleft", diag_speed),
+            (0, 1): (self.facing, "b{}".format(self.facing), vert_speed),
+        }
+        return values[direction]
+
+    def finish_unit_move(self, unit):
+        self.units_in_transit.remove(unit)
+        if not self.units_in_transit:
+            self.intransit = False
 
 
 class Unit(object):
 
-    def __init__(self, x, y, name):
-        self.x = x
-        self.y = y
+    def __init__(self, name, unit_group):
         self.name = name
         self.make_sprite()
         self.moving = False
-
-    def add_sprite(self, sprite_manager):
-        sprite_manager.add_sprite(UNIT_GROUP, self.sprite)
-
+        self.unit_group = unit_group
 
     def make_sprite(self):
         stand_right = self.get_component("stand_right")
@@ -79,3 +113,19 @@ class Unit(object):
     def __str__(self):
         return unicode(self)
 
+    def __cmp__(self, other):
+        return 0
+
+    def move_to(self, position, direction, facing, speed):
+        animation = self.get_walk_animation(direction)
+        resting = self.get_component("stand_{}".format(facing))
+        self.sprite.move_to(
+            position, speed, animation, resting_component=resting,
+            end_callback=self.finish_move
+        )
+
+    def finish_move(self, extra_time):
+        self.unit_group.finish_unit_move(self)
+
+    def get_walk_animation(self, direction):
+        return SpriteManager.get_animation("unit.{}.walk_{}".format(self.name, direction))

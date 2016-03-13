@@ -3,6 +3,7 @@ import logging
 from pyglet.window import key
 from ascension.window import MainWindowManager
 from ascension.settings import PlayerConf
+from ascension.ascsprite import SpriteManager, OVERLAY_GROUP
 
 
 LOG = logging.getLogger(__name__)
@@ -23,6 +24,10 @@ class KeyboardHandler(object):
             LOG.warning("Key '{}' was being held but received key pressed event")
         else:
             self.keys_held.append(symbol)
+            funcname = "press_{}".format(keystring.lower())
+            func = getattr(self, funcname, None)
+            if func:
+                func()
 
     def on_key_release(self, symbol, modifiers):
         LOG.debug("'{}' Released with the following modifiers: {}".format(
@@ -65,3 +70,7 @@ class KeyboardHandler(object):
     def tick_right(self, time_passed):
         MainWindowManager.move(PlayerConf.scroll_speed * time_passed, 0)
         LOG.debug("MainWindowManager 'x' set to '{}'".format(MainWindowManager.x))
+
+    def press_o(self):
+        SpriteManager.toggle_group_active(OVERLAY_GROUP)
+

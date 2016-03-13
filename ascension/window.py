@@ -12,13 +12,11 @@ from ascension.settings import AscensionConf as conf
 from ascension.profiler import ProfilerManager
 from ascension.ascsprite import SpriteManager
 
-
 LOG = logging.getLogger(__name__)
 
 
 class MainWindowManager(object):
     __metaclass__ = Singleton
-    default_scale = 2
 
     def __init__(self):
         self.width = conf.window_width
@@ -74,9 +72,10 @@ class MainWindowManager(object):
         if self.mouse_manager:
             LOG.info("Binding mouse events set")
             self.mouse_manager.bind_mouse_events(self.pyglet_window)
-        clock.schedule_interval(self.tick, 1.0 / conf.target_frame_rate)
+        clock.schedule_interval(self.tick, 1.0 / (conf.target_frame_rate * 3))
 
     def on_draw(self):
+        self.pyglet_window.clear()
         ProfilerManager.start("MAIN_WINDOW_DRAW", targets=self.profiler_targets)
         pyglet.gl.glColor4f(*self.background_color)
         drawRect(0, 0, self.width, self.height)
@@ -96,6 +95,11 @@ class MainWindowManager(object):
 
     def set_background_color(self, r=0.05, g=0.05, b=0.05):
         self.background_color = (r, g, b, 1)
+
+    def get_sprite_from_screen(self, x, y):
+        offset = self.get_window_offset()
+        return SpriteManager.get_adjusted_position(x, y, offset)
+
 
 
 def drawRect(x, y=None, width=None, height=None):

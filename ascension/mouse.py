@@ -1,4 +1,6 @@
 from ascension.util import Singleton
+from ascension.window import MainWindowManager
+from ascension.tilemap import TileMap
 from ascension.unit import UnitSet
 import logging
 
@@ -20,18 +22,12 @@ class MouseHandler:
     def on_mouse_release(self, x, y, button, modifiers):
         LOG.debug("mouse released {} {} {} {}".format(x, y, button, modifiers))
         clicked = self.get_clicked_tile(x, y)
-        unit = None
-        for tile in self.tiles:
-            units = UnitSet.get_units_at(*tile)
-            if units:
-                unit = units[0]
-                break
-        UnitSet.move_unit(unit, *clicked)
+        unit_set = UnitSet.unit_groups[0]
+        unit_set.move(*clicked)
 
     def get_clicked_tile(self, x, y):
-        value = self.tiles[self.next_tile]
-        self.next_tile = (self.next_tile + 1) % len(self.tiles)
-        return value
+        sprite_x, sprite_y = MainWindowManager.get_sprite_from_screen(x, y)
+        return TileMap.get_clicked_tile(sprite_x, sprite_y)
 
     def bind_mouse_events(self, window):
         window.event(self.on_mouse_press)

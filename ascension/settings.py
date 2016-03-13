@@ -71,6 +71,10 @@ player_settings = SettingSet([
         "name": "scroll_speed",
         "default": 400,
         "parse": int,
+    },
+    {
+        "name": "unit_move_speed",
+        "default": 50
     }
 
 

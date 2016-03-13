@@ -11,7 +11,7 @@ from ascension.keyboard import KeyboardHandler
 from ascension.mouse import MouseHandler
 from ascension.ascsprite import SpriteManager
 from ascension.tilemap import TileMap
-from ascension.unit import UnitSet
+from ascension.unit import UnitSet, UnitGroup
 
 
 GREY = (100, 100, 100)
@@ -58,12 +58,8 @@ class Ascension(object):
     def initialize(self):
         TileMap.generate_square()
         TileMap.add_tile_sprites(SpriteManager)
-        UnitSet.new_unit(0, -1, "spear")
-        UnitSet.new_unit(-1, -1, "bow")
-        UnitSet.new_unit(-2, -1, "sword")
-        UnitSet.new_unit(0, 0, "sword")
-        UnitSet.anchor_sprites(TileMap)
-        UnitSet.add_unit_sprites(SpriteManager)
+        unit_group = UnitGroup(0, 0, units=["sword"])
+        UnitSet.add_unit_group(unit_group)
 
     def run(self):
         logging.config.dictConfig(AscensionConf.logging)

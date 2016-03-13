@@ -4,7 +4,13 @@ logging:
         ascension:
             handlers:
                 - console
-            level: INFO
+            level: ERROR
+            propagate: false
+        # ascension.tilemap:
+        #     handlers:
+        #         - console
+        #     level: DEBUG
+        #     propagate: false
     handlers:
         console: 
             class: logging.StreamHandler

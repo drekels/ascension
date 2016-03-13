@@ -1,14 +1,16 @@
-from ascension.util import Singleton
-from Queue import PriorityQueue
+import logging
 import math
-from ascension.ascsprite import TILE_GROUP, Sprite
+
+from Queue import PriorityQueue
+
+from ascension.ascsprite import OVERLAY_GROUP, TILE_GROUP, Sprite, TextSprite
+from ascension.util import Singleton
+
+LOG = logging.getLogger(__name__)
 
 
 class TileMap(object):
     __metaclass__ = Singleton
-    unit_z = 0.3
-    tile_z = 0.4
-
 
     def __init__(self):
         self.moverules = SimpleHexMoveRules()
@@ -26,17 +28,17 @@ class TileMap(object):
         for x in range(min_x, max_x):
             y_offset = -int(math.ceil(x / 2.0))
             for y in range(min_y + y_offset, max_y + y_offset):
-                self.addtile(x, y, Tile())
+                self.addtile(Tile(x, y))
 
-    def addtile(self, x, y, tile):
-        if x not in self.tiles:
-            self.tiles[x] = {}
-        elif y in self.tiles[x]:
+    def addtile(self, tile):
+        if tile.x not in self.tiles:
+            self.tiles[tile.x] = {}
+        elif tile.y in self.tiles[tile.x]:
             raise KeyError(
                 "TileMap already contains a tile for point ({}, {})"
-                .format(x, y)
+                .format(tile.x, tile.y)
             )
-        self.tiles[x][y] = tile
+        self.tiles[tile.x][tile.y] = tile
         self.count += 1
 
     def gettile(self, x, y):
@@ -59,28 +61,107 @@ class TileMap(object):
         return 16
 
     def get_vert_x_shift(self):
-        return 15
+        return self.get_tile_height() / 2
+
+    def get_perspective_sin(self):
+        if hasattr(self, "perspective_sin"):
+            return self.perspective_sin
+        i = self.get_vert_x_shift()
+        x = self.get_tile_width() / 2.0
+        z = self.get_tile_width()/2.0 - self.get_horz_point_width()
+        self.perspective_sin = i / math.sqrt(x**2-z**2)
+        return self.perspective_sin
+
+    def get_diagonal_speed_multiplier(self):
+        if hasattr(self, "diagonal_speed_multiplier"):
+            return self.diagonal_speed_multiplier
+        self.diagonal_speed_multiplier = math.sqrt(self.get_perspective_sin()**2 + 3) / 2
+        return self.diagonal_speed_multiplier
+
+    def get_vert_speed_multiplier(self):
+        return self.get_perspective_sin()
 
     def add_tile_sprite(self, x, y, sprite_manager, anchor=(0, 0)):
-        s = self.tiles[x][y].get_sprite()
-        x_position = anchor[0] + x * (s.component_width - self.get_horz_point_width())
-        y_position = anchor[1] + y * s.component_height + x * self.get_vert_x_shift()
-        s.x, s.y, s.z = x_position, y_position, self.tile_z
+        tile = self.tiles[x][y]
+        s = tile.get_sprite()
+        coor = tile.get_coor_sprite()
+        width, height = self.get_tile_width(), self.get_tile_height()
+        x_position = anchor[0] + x * (width - self.get_horz_point_width())
+        y_position = anchor[1] + y * height + x * self.get_vert_x_shift()
+        s.x, s.y, s.z = x_position, y_position, 0.0
+        coor.set_position(x_position, y_position)
         sprite_manager.add_sprite(TILE_GROUP, s)
+        sprite_manager.add_sprite(OVERLAY_GROUP, coor)
+
+    def get_tile_width(self):
+        return self.tiles[0][0].get_sprite().component_width
+
+    def get_tile_height(self):
+        return self.tiles[0][0].get_sprite().component_height
+
+    def get_clicked_tile(self, x, y):
+        LOG.debug("Entering get_clicked_tile...")
+        LOG.debug("clicked ({}, {})".format(x, y))
+
+        x, y = int(x), int(y)
+        horz_point_width = self.get_horz_point_width()
+        tile_width, tile_height = self.get_tile_width(), self.get_tile_height()
+
+        LOG.debug("tile dimensions ({}, {})".format(tile_width, tile_height))
+
+        box_width, box_height = tile_width - horz_point_width, tile_height / 2
+        box_x, box_y = x / box_width, y / box_height
+        extra_x, extra_y = x % box_width, y % box_height
+        left = (box_x, (box_y - box_x + 1) / 2)
+        right = (box_x + 1, (box_y - box_x) / 2)
+        x_adjust = horz_point_width * (extra_y - box_height / 2.0) / box_height
+        if (box_y+box_x) % 2:
+            x_adjust = -x_adjust
+        x_adjusted = extra_x + x_adjust
+
+        LOG.debug("x_adjust ({}, {} -> {})".format(x_adjust, extra_x, x_adjusted))
+
+        value = left
+        if x_adjusted > box_width / 2.0:
+            value = right
+
+        LOG.debug("result ({}, {})".format(*value))
+        LOG.debug("Exiting get_clicked_tile")
+
+        return value
+
+    def get_tile_position(self, x, y):
+        tile = self.tiles[x][y]
+        return tile.sprite.x, tile.sprite.y
+
 
 
 class Tile(object):
 
-    def __init__(self):
+    def __init__(self, x, y):
+        self.x, self.y = x, y
         self.sprite = None
+        self.coor_sprite = None
 
     def get_sprite(self):
         if not self.sprite:
             self.make_sprite()
         return self.sprite
 
+    def get_coor_sprite(self):
+        if not self.coor_sprite:
+            self.make_coor_sprite()
+        return self.coor_sprite
+
     def make_sprite(self):
-        self.sprite = Sprite(component_name="terrain.grassland")
+        self.sprite = Sprite(
+            component_name="terrain.grassland",
+        )
+
+    def make_coor_sprite(self):
+        self.coor_sprite = TextSprite(
+            font_size=14, text="({}, {})".format(self.x, self.y)
+        )
 
 
 class SimpleHexMoveRules(object):
