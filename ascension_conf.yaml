@@ -4,7 +4,7 @@ logging:
         ascension:
             handlers:
                 - console
-            level: ERROR
+            level: INFO
             propagate: false
         # ascension.tilemap:
         #     handlers:
@@ -20,4 +20,7 @@ logging:
             (): pykfs.kfslog.KFSFormatter
             fmt: "> {timeplus} > {nameplus} > {levelplus} {message}"
             color: true
+disabled_profilers:
+    - MAIN_WINDOW_DRAW
+    - SORT_SPRITES
 target_frame_rate: 30

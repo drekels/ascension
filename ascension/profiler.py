@@ -2,6 +2,7 @@ from util import Singleton
 import datetime as dt
 import logging
 import pyglet
+from ascension.settings import AscensionConf
 
 
 LOG = logging.getLogger(__name__)
@@ -18,6 +19,8 @@ REPORT_MESSAGES = [
     "  {max_time} max",
     "  {min_time} min",
     "  {average_time} average",
+    "  {total_time} total",
+    "  {share} share of time passed",
 ]
 TIME_FORMAT = "{}s {:>3}ms {:>3}\xces"
 
@@ -40,7 +43,6 @@ class ProfilerBlock(object):
     def reset_metrics(self):
         self.report_start = dt.datetime.now()
         self.count = 0
-        self.average = None
         self.maximum = None
         self.minimum = None
 
@@ -51,14 +53,18 @@ class ProfilerBlock(object):
 
     def report(self, *args):
         report_end = dt.datetime.now()
-        time_passed = get_time_string(report_end - self.report_start)
+        time_passed_num = report_end - self.report_start
+        time_passed = get_time_string(time_passed_num)
         max_time = get_time_string(self.maximum)
         min_time = get_time_string(self.minimum)
-        average_time = get_time_string(self.average)
+        average_time = get_time_string(self.total / self.count)
+        total_time = get_time_string(self.total)
+        share = "{0:.0f}%".format(self.total.total_seconds()*100 / time_passed_num.total_seconds())
         for message in REPORT_MESSAGES:
             LOG.info(message.format(
                 name=self.name, time_passed=time_passed, run_count=self.count,
-                max_time=max_time, min_time=min_time, average_time=average_time
+                max_time=max_time, min_time=min_time, average_time=average_time,
+                share=share, total_time=total_time
             ))
         self.report_start = dt.datetime.now()
         self.reset_metrics()
@@ -82,11 +88,11 @@ class ProfilerBlock(object):
         if self.count == 1:
             self.maximum = time_passed
             self.minimum = time_passed
-            self.average = time_passed
+            self.total = time_passed
         else:
             self.maximum = time_passed > self.maximum and time_passed or self.maximum
             self.minimum = time_passed < self.minimum and time_passed or self.minimum
-            self.average += (time_passed - self.average) / self.count
+            self.total += time_passed
         for log_level, target_time in self.targets:
             if time_passed > target_time:
                 time_over = time_passed - target_time
@@ -116,11 +122,15 @@ class ProfilerManager(object):
             )
 
     def start(self, name, targets=None, report_every=5):
+        if name in AscensionConf.disabled_profilers:
+            return
         if name not in self.profilers:
             self.profilers[name] = ProfilerBlock(name, targets=targets, report_every=report_every)
         self.profilers[name].start()
 
     def stop(self, name):
+        if name in AscensionConf.disabled_profilers:
+            return
         if name not in self.profilers:
             raise KeyError("No such profiler '{}' to stop".format(name))
         self.profilers[name].stop()

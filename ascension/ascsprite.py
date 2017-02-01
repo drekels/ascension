@@ -63,10 +63,28 @@ class TransitionEngine(object):
         pass
 
 
+class StaticDelay(TransitionEngine):
+
+    def __init__(self, sprite, duration=0.0, **kwargs):
+        super(StaticDelay, self).__init__(sprite, **kwargs)
+        self.duration = duration
+        self.delay_remaining = self.duration and timedelta(seconds=self.duration) or False
+
+    def iscomplete(self):
+        return not self.delay_remaining
+
+    def do_transition(self, time_passed):
+        if self.delay_remaining:
+            self.delay_remaining -= time_passed
+            if self.delay_remaining < timedelta(0.0):
+                self.delay_remaining = False
+                return -self.delay_remaining
+
+
 class MoveEngine(TransitionEngine):
 
-    def __init__(self, sprite, destination, speed):
-        super(MoveEngine, self).__init__(sprite)
+    def __init__(self, sprite, destination, speed, **kwargs):
+        super(MoveEngine, self).__init__(sprite, **kwargs)
         self.destination = destination
         self.speed = speed
         self.calc_unit_vector
@@ -112,8 +130,8 @@ class MoveEngine(TransitionEngine):
 
 class MoveWithAnimationEngine(MoveEngine):
 
-    def __init__(self, sprite, destination, speed, animation, resting_component=None):
-        super(MoveWithAnimationEngine, self).__init__(sprite, destination, speed)
+    def __init__(self, sprite, destination, speed, animation, resting_component=None, **kwargs):
+        super(MoveWithAnimationEngine, self).__init__(sprite, destination, speed, **kwargs)
         self.animation = animation
         self.add_end_callback(self.stop_animation)
         self.resting_component = resting_component
@@ -130,7 +148,6 @@ class MoveWithAnimationEngine(MoveEngine):
         self.sprite.stop_animation(run_callbacks=False)
         if self.resting_component:
             self.sprite.set_component(self.resting_component)
-
 
 
 class AscSpriteComponent(SpriteComponent):
@@ -172,6 +189,12 @@ class AscAnimationStage(SpriteAnimationStage):
 
 class AscAnimation(SpriteAnimation):
     stage_class = AscAnimationStage
+
+    def get_duration(self):
+        duration = 0.0
+        for stage in self.stages:
+            duration += stage.duration
+            return duration
 
     def __getstate__(self):
         state = super(AscAnimation, self).__getstate__()
@@ -238,6 +261,9 @@ class Sprite(object):
         self.subsprites = {}
         self.behind_subsprites = behind_subsprites
         self.infront_subsprites = infront_subsprites
+        self.texture = SpriteManager.texture
+        self.texture_width = float(self.texture.width)
+        self.texture_height = float(self.texture.height)
         if component_name:
             self.set_component(component_name, anchor=anchor)
 
@@ -288,6 +314,10 @@ class Sprite(object):
         self.anchor_x, self.anchor_y = self.component.get_anchor(self.anchor)
         self.displacement_x = displacement_x
         self.displacement_y = displacement_y
+        self.component_x_ratio = self.component_x / self.texture_width
+        self.component_y_ratio = self.component_y / self.texture_height
+        self.relative_component_width = self.component_width / self.texture_width
+        self.relative_component_height = self.component_height / self.texture_height
 
     def get_component_center(self):
         return self.component_width / 2, self.component_height
@@ -299,12 +329,6 @@ class Sprite(object):
         try:
             if not self.component or not self.visible:
                 return
-            texture = SpriteManager.texture
-            texture_width, texture_height = float(texture.width), float(texture.height)
-            component_x = self.component_x / texture_width
-            component_y = self.component_y / texture_height
-            relative_component_width = self.component_width / texture_width
-            relative_component_height = self.component_height / texture_height
             width = self.component_width * scale
             height = self.component_height * scale
             offset_x, offset_y = offset
@@ -316,20 +340,23 @@ class Sprite(object):
             )
             draw_z = 0.0
             array = (gl.GLfloat * 32)(
-                component_x, component_y, 0.0, 1.,
+                self.component_x_ratio, self.component_y_ratio, 0.0, 1.,
                 draw_x, draw_y, draw_z, 1.,
-                component_x + relative_component_width, component_y, 0.0, 1.,
+                self.component_x_ratio + self.relative_component_width, self.component_y_ratio, 0.0, 1.,
                 draw_x + width, draw_y, draw_z, 1.,
-                component_x + relative_component_width, component_y + relative_component_height, 0.0, 1.,
+                self.component_x_ratio + self.relative_component_width,
+                    self.component_y_ratio + self.relative_component_height, 0.0, 1.,
                 draw_x + width, draw_y + height, draw_z, 1.,
-                component_x, component_y + relative_component_height, 0.0, 1.,
+                self.component_x_ratio, self.component_y_ratio + self.relative_component_height, 0.0, 1.,
                 draw_x, draw_y + height, draw_z, 1.
             )
+            ProfilerManager.start("GL_DRAW_ARRAYS")
             gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
             gl.glPushClientAttrib(gl.GL_CLIENT_VERTEX_ARRAY_BIT)
             gl.glInterleavedArrays(gl.GL_T4F_V4F, 0, array)
             gl.glDrawArrays(gl.GL_QUADS, 0, 4)
             gl.glPopClientAttrib()
+            ProfilerManager.stop("GL_DRAW_ARRAYS")
         except Exception:
             LOG.exception("Exception encountered drawing sprite {}".format(self))
         for subsprite in self.infront_subsprites:
@@ -359,10 +386,13 @@ class Sprite(object):
         self.animation_player.add_end_callback(self.clear_complete_animation)
         self.add_transition_engine(self.animation_player, **kwargs)
 
+    def static_delay(self, duration, **kwargs):
+        self.add_transition_engine(StaticDelay(self, duration=duration), **kwargs)
+
     def move_to(self, destination, speed, animation=None, resting_component=None, **kwargs):
         if animation:
             move_engine = MoveWithAnimationEngine(
-                self, destination, speed, animation, resting_component=resting_component
+                self, destination, speed, animation, resting_component=resting_component,
             )
         else:
             move_engine = MoveEngine(self, destination, speed)
@@ -393,6 +423,12 @@ class Sprite(object):
     def clear_complete_animation(self, extra_time=timedelta(0)):
         self.animation_player = None
         self.animation = None
+
+    def add_subsprite(self, subsprite, infront=True):
+        if infront:
+            self.infront_subsprites.append(subsprite)
+        else:
+            self.behind_subsprites.append(subsprite)
 
 
 class TextSprite(object):
@@ -546,9 +582,11 @@ class SpriteManager(object):
     def draw_sprites(self, offset):
         offset = [x / self.scale for x in offset]
         self.update_sprite_groups()
+        ProfilerManager.start("DRAW_SPRITES")
         for groupnum in self.sprite_group_nums:
             group = self.sprite_groups[groupnum]
             self.draw_group(offset, group)
+        ProfilerManager.stop("DRAW_SPRITES")
         self.set_gl_texture(False)
 
     def draw_group(self, offset, group):

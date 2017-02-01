@@ -64,6 +64,7 @@ class MainWindowManager(object):
     def open(self):
         LOG.info("Window '{}' opened".format(self))
         self.pyglet_window = pyglet.window.Window(width=self.width, height=self.height, vsync=False)
+        print self.pyglet_window.context.get_info().get_version()
         self.pyglet_window.event(self.on_draw)
         self.initializeGL()
         if self.keyboard_manager:

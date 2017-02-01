@@ -13,6 +13,7 @@ with open('requirements.txt') as f:
 import ascension
 version = ascension.get_version()
 
+print required
 
 setup(
     name='ascension',

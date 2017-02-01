@@ -45,7 +45,8 @@ def remove_extension(filepath):
 
 class AtlasGenerator(object):
     load_map = {
-        ("unit",): "load_unit_image"
+        ("unit",): "load_unit_image",
+        ("terrain", "features"): "load_feature_image",
     }
 
     @classmethod
@@ -134,6 +135,14 @@ class AtlasGenerator(object):
         name = ".".join(tokens + [remove_extension(filename)])
         component = SpriteComponent(name, image_path)
         self.add_center_anchor(component)
+        self.components[name] = component
+
+    def load_feature_image(self, image_path, tokens):
+        filename = os.path.basename(image_path)
+        name = ".".join(tokens + [remove_extension(filename)])
+        base_component = SpriteComponent(name, image_path)
+        self.add_center_anchor(base_component)
+        component = shade_edges(base_component)
         self.components[name] = component
 
     def load_unit_image(self, image_path, tokens):

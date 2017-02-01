@@ -1,11 +1,22 @@
+import logging
+import random
+
 from ascension.util import Singleton, insert_sort, IllegalActionException
 from ascension.ascsprite import SpriteManager, Sprite, UNIT_GROUP
 from ascension.tilemap import TileMap
 from ascension.settings import PlayerConf
-import logging
 
 
 LOG = logging.getLogger(__name__)
+
+POSITIONS = {
+    "top_left": (-12, 4),
+    "top": (3, 4),
+    "top_right": (14, 3),
+    "bottom_left": (-7, -7),
+    "bottom_right": (8, -7),
+}
+BASE_DELAY = 0.3
 
 
 class UnitSet(object):
@@ -27,21 +38,28 @@ class UnitGroup(object):
         self.units = []
         self.intransit = False
         self.facing = "right"
-        for unit_name in units:
-            self.add_unit(unit_name)
+        self.positions = {}
+        for unit_name, position in units:
+            self.add_unit(unit_name, position)
 
-    def add_unit(self, name):
+    def add_unit(self, name, position):
         unit = Unit(name, self)
         self.units.append(unit)
+        self.positions[unit] = position
         insert_sort(self.units)
 
     def add_sprites(self, sprite_manager):
-        px, py = self.get_tile_position()
+        tile_position = self.get_tile_position()
         for unit in self.units:
             sprite = unit.sprite
-            sprite.x = px
-            sprite.y = py
+            sprite.x, sprite.y = self.get_unit_position(unit, tile_position)
             sprite_manager.add_sprite(UNIT_GROUP, sprite)
+
+    def get_unit_position(self, unit, tile_position):
+        xdiff, ydiff = POSITIONS[self.positions[unit]]
+        xtile, ytile = tile_position
+
+        return  xtile + xdiff, ytile + ydiff
 
     def get_tile_position(self):
         return TileMap.get_tile_position(self.x, self.y)
@@ -49,7 +67,7 @@ class UnitGroup(object):
     def move(self, x, y):
         if self.intransit:
             raise IllegalActionException(
-                "Cannot move unit group {}, it is intransit".format(self)
+                "Cannot move unit group {}, it is in transit".format(self)
             )
         if not TileMap.hastile(x, y):
             raise IllegalActionException(
@@ -68,7 +86,8 @@ class UnitGroup(object):
         position = TileMap.get_tile_position(x, y)
         for unit in self.units:
             self.units_in_transit.append(unit)
-            unit.move_to(position, direction, self.facing, speed)
+            new_position = self.get_unit_position(unit, position)
+            unit.move_to(new_position, direction, self.facing, speed)
 
     def get_move_direction(self, x, y):
         direction = (x - self.x, y - self.y)
@@ -89,6 +108,7 @@ class UnitGroup(object):
         self.units_in_transit.remove(unit)
         if not self.units_in_transit:
             self.intransit = False
+
 
 
 class Unit(object):
@@ -116,12 +136,21 @@ class Unit(object):
     def __cmp__(self, other):
         return 0
 
+    def get_move_delay(self):
+        return random.random() * BASE_DELAY
+
     def move_to(self, position, direction, facing, speed):
-        animation = self.get_walk_animation(direction)
-        resting = self.get_component("stand_{}".format(facing))
+        self.pending_position = position
+        self.pending_speed = speed
+        self.pending_animation = self.get_walk_animation(direction)
+        self.pending_resting = self.get_component("stand_{}".format(facing))
+        delay = self.get_move_delay()
+        self.sprite.static_delay(delay, end_callback=self.move_after_delay)
+
+    def move_after_delay(self, time_passed=0.0):
         self.sprite.move_to(
-            position, speed, animation, resting_component=resting,
-            end_callback=self.finish_move
+            self.pending_position, self.pending_speed, self.pending_animation,
+            resting_component=self.pending_resting, end_callback=self.finish_move
         )
 
     def finish_move(self, extra_time):
@@ -129,3 +158,6 @@ class Unit(object):
 
     def get_walk_animation(self, direction):
         return SpriteManager.get_animation("unit.{}.walk_{}".format(self.name, direction))
+
+    def get_default_walk_animation(self):
+        return self.get_walk_animation("right")

@@ -59,6 +59,10 @@ game_settings = SettingSet([
         "name": "window_height",
         "default": 600,
     },
+    {
+        "name": "disabled_profilers",
+        "default": []
+    }
 ])
 
 player_settings = SettingSet([
@@ -76,8 +80,6 @@ player_settings = SettingSet([
         "name": "unit_move_speed",
         "default": 50
     }
-
-
 ])
 
 

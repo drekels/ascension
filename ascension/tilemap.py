@@ -3,7 +3,7 @@ import math
 
 from Queue import PriorityQueue
 
-from ascension.ascsprite import OVERLAY_GROUP, TILE_GROUP, Sprite, TextSprite
+from ascension.ascsprite import OVERLAY_GROUP, TILE_GROUP, UNIT_GROUP, Sprite, TextSprite
 from ascension.util import Singleton
 
 LOG = logging.getLogger(__name__)
@@ -92,6 +92,11 @@ class TileMap(object):
         coor.set_position(x_position, y_position)
         sprite_manager.add_sprite(TILE_GROUP, s)
         sprite_manager.add_sprite(OVERLAY_GROUP, coor)
+        for feature_sprite in tile.get_feature_sprites():
+            feature_sprite.x = feature_sprite.x + x_position
+            feature_sprite.y = feature_sprite.y + y_position
+            sprite_manager.add_sprite(UNIT_GROUP, feature_sprite)
+
 
     def get_tile_width(self):
         return self.tiles[0][0].get_sprite().component_width
@@ -135,13 +140,14 @@ class TileMap(object):
         return tile.sprite.x, tile.sprite.y
 
 
-
 class Tile(object):
 
     def __init__(self, x, y):
         self.x, self.y = x, y
         self.sprite = None
         self.coor_sprite = None
+        self.feature_sprites = None
+        self.feature_map = FeatureMap()
 
     def get_sprite(self):
         if not self.sprite:
@@ -153,6 +159,11 @@ class Tile(object):
             self.make_coor_sprite()
         return self.coor_sprite
 
+    def get_feature_sprites(self):
+        if not self.feature_sprites:
+            self.make_feature_sprites()
+        return self.feature_sprites
+
     def make_sprite(self):
         self.sprite = Sprite(
             component_name="terrain.grassland",
@@ -162,6 +173,32 @@ class Tile(object):
         self.coor_sprite = TextSprite(
             font_size=14, text="({}, {})".format(self.x, self.y)
         )
+
+    def make_feature_sprites(self):
+        self.feature_sprites = []
+        for feature_name, x, y in self.feature_map.features:
+            self.make_feature_sprite(feature_name, x, y)
+
+    def make_feature_sprite(self, feature_name, x, y):
+        sprite = Sprite(component_name=feature_name, x=x, y=y, anchor="stand")
+        self.feature_sprites.append(sprite)
+
+
+class FeatureMap(object):
+
+    def __init__(self, feature_counts=None):
+        self.feature_counts = feature_counts or {"mountain": 5}
+        self.features = []
+        self.place_features()
+
+
+    def place_features(self):
+        self.features.append(("terrain.features.mountain_1", 0, 0))
+        self.features.append(("terrain.features.mountain_1", 8, 0))
+        self.features.append(("terrain.features.mountain_1", -8, 0))
+        self.features.append(("terrain.features.mountain_1", 4, -5))
+        self.features.append(("terrain.features.mountain_1", -4, -5))
+        self.features.append(("terrain.features.mountain_1", 4, 5))
 
 
 class SimpleHexMoveRules(object):
