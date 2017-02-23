@@ -94,7 +94,7 @@ class ProfilerBlock(object):
             self.minimum = time_passed < self.minimum and time_passed or self.minimum
             self.total += time_passed
         for log_level, target_time in self.targets:
-            if time_passed > target_time:
+            if not target_time or time_passed > target_time:
                 time_over = time_passed - target_time
                 getattr(LOG, log_level.lower())(SLOW_FRAME_MESSAGE.format(
                     profiler_label=self.name, time_passed=get_time_string(time_passed),

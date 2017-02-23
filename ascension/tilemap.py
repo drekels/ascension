@@ -3,7 +3,7 @@ import math
 
 from Queue import PriorityQueue
 
-from ascension.ascsprite import OVERLAY_GROUP, TILE_GROUP, UNIT_GROUP, Sprite, TextSprite
+from ascension.ascsprite import TILE_GROUP, UNIT_GROUP, Sprite, TextSprite
 from ascension.util import Singleton
 
 LOG = logging.getLogger(__name__)
@@ -84,18 +84,18 @@ class TileMap(object):
     def add_tile_sprite(self, x, y, sprite_manager, anchor=(0, 0)):
         tile = self.tiles[x][y]
         s = tile.get_sprite()
-        coor = tile.get_coor_sprite()
+        #coor = tile.get_coor_sprite()
         width, height = self.get_tile_width(), self.get_tile_height()
         x_position = anchor[0] + x * (width - self.get_horz_point_width())
         y_position = anchor[1] + y * height + x * self.get_vert_x_shift()
         s.x, s.y, s.z = x_position, y_position, 0.0
-        coor.set_position(x_position, y_position)
-        sprite_manager.add_sprite(TILE_GROUP, s)
-        sprite_manager.add_sprite(OVERLAY_GROUP, coor)
+        #coor.set_position(x_position, y_position)
+        sprite_manager.add_sprite(s)
+        #sprite_manager.add_sprite(OVERLAY_GROUP, coor)
         for feature_sprite in tile.get_feature_sprites():
             feature_sprite.x = feature_sprite.x + x_position
             feature_sprite.y = feature_sprite.y + y_position
-            sprite_manager.add_sprite(UNIT_GROUP, feature_sprite)
+            sprite_manager.add_sprite(feature_sprite)
 
 
     def get_tile_width(self):
@@ -167,6 +167,7 @@ class Tile(object):
     def make_sprite(self):
         self.sprite = Sprite(
             component_name="terrain.grassland",
+            z_group=TILE_GROUP,
         )
 
     def make_coor_sprite(self):
@@ -180,7 +181,7 @@ class Tile(object):
             self.make_feature_sprite(feature_name, x, y)
 
     def make_feature_sprite(self, feature_name, x, y):
-        sprite = Sprite(component_name=feature_name, x=x, y=y, anchor="stand")
+        sprite = Sprite(component_name=feature_name, x=x, y=y, z_group=UNIT_GROUP, anchor="stand")
         self.feature_sprites.append(sprite)
 
 

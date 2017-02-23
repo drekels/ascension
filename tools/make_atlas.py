@@ -2,6 +2,7 @@ import sys
 import os
 import json
 import yaml
+import shutil
 from sprite.atlas import Atlas
 from sprite.component import SpriteComponent
 from ascension.ascsprite import AscAnimation
@@ -48,12 +49,20 @@ class AtlasGenerator(object):
         ("unit",): "load_unit_image",
         ("terrain", "features"): "load_feature_image",
     }
+    data_dir = "data"
+    img_dir = os.path.join(data_dir, "img")
+    x2_dir = os.path.join(img_dir, "x2")
 
     @classmethod
     def make_atlas(cls, base_directory):
         inst = cls(base_directory)
         inst.load_images()
         inst.generate_atlas()
+        if os.path.isdir(cls.img_dir):
+            shutil.rmtree(cls.img_dir)
+        os.mkdir(cls.img_dir)
+        os.mkdir(cls.x2_dir)
+        inst.save_all_images()
         inst.save_atlas()
 
     def __init__(self, base_directory):
@@ -89,10 +98,23 @@ class AtlasGenerator(object):
         for animation in self.animations:
             self.atlas.add_animation(animation)
 
+    def save_all_images(self):
+        for component_name, component in self.atlas.components.items():
+            filename = "{}.png".format(component_name)
+            filepath = os.path.join(self.img_dir, filename)
+            x2_filepath = os.path.join(self.x2_dir, filename)
+            component.image.save(filepath, format="PNG")
+            width, height = component.image.width, component.image.height
+            x2_image = component.image.resize((width*2, height*2))
+            x2_image.save(x2_filepath, format="PNG")
+
+
     def save_atlas(self):
-        with open("data/ASCENSION_ATLAS_META.json", "w") as f:
+        meta_file_name = os.path.join(self.img_dir, "ASCENSION_ATLAS_META.json")
+        img_file_name = os.path.join(self.img_dir, "ASCENSION_ATLAS.png")
+        with open(meta_file_name, "w") as f:
             json.dump(self.atlas.get_meta(), f, indent=4)
-        self.atlas.dump_atlas("data/ASCENSION_ATLAS.png")
+        self.atlas.dump_atlas(img_file_name)
 
     def load_image_dir(self, directory, tokens=[]):
         for tail in os.listdir(directory):

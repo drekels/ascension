@@ -19,8 +19,10 @@ class RepeatCallback(object):
 
 class AnimTest(Ascension):
 
-    def initialize(self):
+    def initialize(self, *animation_names):
+
         MainWindowManager.set_background_color(0.5, 0.5, 0.5)
+        self.animation_names = animation_names
         self.animation_sprites = []
         self.find_animations()
         self.determine_cell_size()
@@ -29,8 +31,15 @@ class AnimTest(Ascension):
     def find_animations(self):
         self.animations = []
         for animation in SpriteManager.animations.values():
-            self.animations.append(animation)
+            if (not self.animation_names or animation.name in self.animation_names
+                or self.animation_names[0] == 'list'):
+                self.animations.append(animation)
         self.animations.sort(key=lambda x: x.name)
+        if self.animation_names[0] == 'list':
+            for animation in self.animations:
+                print animation.name
+            import sys
+            sys.exit(0)
 
     def determine_cell_size(self):
         max_width = 0

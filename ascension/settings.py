@@ -44,12 +44,16 @@ game_settings = SettingSet([
         "default": {}
     },
     {
+        "name": "img_dir",
+        "default": "data/img/x2",
+    },
+    {
         "name": "atlas_image",
-        "default": "data/ASCENSION_ATLAS.png",
+        "default": "data/img/ASCENSION_ATLAS.png",
     },
     {
         "name": "atlas_meta",
-        "default": "data/ASCENSION_ATLAS_META.json"
+        "default": "data/img/ASCENSION_ATLAS_META.json"
     },
     {
         "name": "window_width",
@@ -62,6 +66,10 @@ game_settings = SettingSet([
     {
         "name": "disabled_profilers",
         "default": []
+    },
+    {
+        "name": "sprite_scale",
+        "default": 2
     }
 ])
 

@@ -47,9 +47,9 @@ class Ascension(object):
             MainWindowManager.check_add_tick_listener(listener)
 
     @classmethod
-    def start(cls):
+    def start(cls, *args):
         cls._init_all()
-        cls.initialize()
+        cls.initialize(*args)
         cls.run()
 
     def __init__(self, *args, **kwargs):

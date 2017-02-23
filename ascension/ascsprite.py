@@ -3,24 +3,23 @@ import logging
 import yaml
 from datetime import timedelta
 from math import floor, ceil
+import os
 
-from pyglet import gl
 from pyglet.text import Label
 from sprite.component import SpriteComponent
 from sprite.animation import (
     SpriteAnimation, SpriteAnimationPlayer, SpriteAnimationStage, ON_ANIMATION_END
 )
 
-from ascension.util import Singleton, insert_sort
+from ascension.util import Singleton
 from ascension.settings import AscensionConf as conf
-from ascension.profiler import ProfilerManager
 
 LOG = logging.getLogger(__name__)
 
 
-TILE_GROUP = 100
-UNIT_GROUP = 200
-OVERLAY_GROUP = 300
+TILE_GROUP = 0
+UNIT_GROUP = 10
+OVERLAY_GROUP = 20
 ON_TRANSITION_END = ON_ANIMATION_END
 
 
@@ -119,9 +118,9 @@ class MoveEngine(TransitionEngine):
             overshoot = True
         if overshoot:
             self.complete = True
-            self.sprite.x, self.sprite.y = self.destination
+            self.sprite.set_position(*self.destination)
         else:
-            self.sprite.x, self.sprite.y = self.sprite.x + x_diff, self.sprite.y + y_diff
+            self.sprite.set_position(self.sprite.x + x_diff, self.sprite.y + y_diff)
         return extra_time
 
     def iscomplete(self):
@@ -245,11 +244,11 @@ class RemoveEngineCallback(object):
 
 class Sprite(object):
 
-    def __init__(self, x=0, y=0, z=0, component_name=None, anchor="center",
-                 behind_subsprites=[], infront_subsprites=[]):
+    def __init__(self, x=0, y=0, z_group=0, component_name=None, anchor="center"):
+        self.pyglet_sprite = None
         self.x = floor(x)
         self.y = floor(y)
-        self.z = z
+        self.z_group = z_group
         self.component = None
         self.visible = True
         self.transition_engines = []
@@ -258,12 +257,6 @@ class Sprite(object):
         self.displacement_x = 0
         self.displacement_y = 0
         self.anchor = anchor
-        self.subsprites = {}
-        self.behind_subsprites = behind_subsprites
-        self.infront_subsprites = infront_subsprites
-        self.texture = SpriteManager.texture
-        self.texture_width = float(self.texture.width)
-        self.texture_height = float(self.texture.height)
         if component_name:
             self.set_component(component_name, anchor=anchor)
 
@@ -276,14 +269,6 @@ class Sprite(object):
 
     def __str__(self):
         return unicode(self)
-
-    @property
-    def component_x(self):
-        return self.component and self.component.rect.x
-
-    @property
-    def component_y(self):
-        return self.component and self.component.rect.y
 
     @property
     def component_width(self):
@@ -301,70 +286,50 @@ class Sprite(object):
     def component_center(self):
         return self.component_width / 2, self.component_height / 2
 
-    def set_component(self, component_name=None, component=None, displacement_x=0, displacement_y=0,
-                      duration=None, anchor=None):
+    def set_position(self, x, y, z=None):
+        if z is None:
+            z = 0
+        self.x = x
+        self.y = y
+        self.xy_updated = True
+
+    def set_component(self, component_name=None, component=None, displacement_x=0,
+                      displacement_y=0, duration=None, anchor=None):
         if not component:
             if not component_name:
                 raise ValueError("set_component requires either a component or a component name")
             component = SpriteManager.get_component(component_name)
         self.component = component
-        self.compoennt_name = component_name or component.name
+        self.image = SpriteManager.get_component_image(component.name)
         self.duration = duration
+        if not self.pyglet_sprite:
+            self.pyglet_sprite = pyglet.sprite.Sprite(
+                self.image, x=0, y=0, batch=SpriteManager.batch
+            )
+        else:
+            self.pyglet_sprite.image = self.image
         self.anchor = anchor or self.anchor
         self.anchor_x, self.anchor_y = self.component.get_anchor(self.anchor)
         self.displacement_x = displacement_x
         self.displacement_y = displacement_y
-        self.component_x_ratio = self.component_x / self.texture_width
-        self.component_y_ratio = self.component_y / self.texture_height
-        self.relative_component_width = self.component_width / self.texture_width
-        self.relative_component_height = self.component_height / self.texture_height
+        self.xy_updated = True
+
+    def determine_pyglet_xy(self):
+        draw_x = (
+            (self.x + self.displacement_x - self.anchor_x) * conf.sprite_scale
+        )
+        draw_y = (
+            (self.y + self.displacement_y - self.component_height + self.anchor_y)
+            * conf.sprite_scale
+        )
+        draw_z = self.z_group
+        self.pyglet_sprite.x, self.pyglet_sprite.y, self.pyglet_sprite.z = draw_x, draw_y, draw_z
+
 
     def get_component_center(self):
         return self.component_width / 2, self.component_height
 
-    def draw(self, offset, scale):
-        subsprite_offset = (offset[0] + self.x, offset[1] + self.y)
-        for subsprite in self.behind_subsprites:
-            subsprite.draw(subsprite_offset, scale)
-        try:
-            if not self.component or not self.visible:
-                return
-            width = self.component_width * scale
-            height = self.component_height * scale
-            offset_x, offset_y = offset
-            draw_x = (
-                (self.x + self.displacement_x - self.anchor_x + offset_x) * scale
-            )
-            draw_y = (
-                (self.y + self.displacement_y - self.component_height + self.anchor_y + offset_y) * scale
-            )
-            draw_z = 0.0
-            array = (gl.GLfloat * 32)(
-                self.component_x_ratio, self.component_y_ratio, 0.0, 1.,
-                draw_x, draw_y, draw_z, 1.,
-                self.component_x_ratio + self.relative_component_width, self.component_y_ratio, 0.0, 1.,
-                draw_x + width, draw_y, draw_z, 1.,
-                self.component_x_ratio + self.relative_component_width,
-                    self.component_y_ratio + self.relative_component_height, 0.0, 1.,
-                draw_x + width, draw_y + height, draw_z, 1.,
-                self.component_x_ratio, self.component_y_ratio + self.relative_component_height, 0.0, 1.,
-                draw_x, draw_y + height, draw_z, 1.
-            )
-            ProfilerManager.start("GL_DRAW_ARRAYS")
-            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
-            gl.glPushClientAttrib(gl.GL_CLIENT_VERTEX_ARRAY_BIT)
-            gl.glInterleavedArrays(gl.GL_T4F_V4F, 0, array)
-            gl.glDrawArrays(gl.GL_QUADS, 0, 4)
-            gl.glPopClientAttrib()
-            ProfilerManager.stop("GL_DRAW_ARRAYS")
-        except Exception:
-            LOG.exception("Exception encountered drawing sprite {}".format(self))
-        for subsprite in self.infront_subsprites:
-            subsprite.draw(subsprite_offset, scale)
-
     def tick(self, time_passed):
-        for subsprite in self.infront_subsprites + self.behind_subsprites:
-            subsprite.tick(time_passed)
         engines = [eng for eng in self.transition_engines]
         for engine in engines:
             if engine in self.transition_engines:
@@ -372,6 +337,9 @@ class Sprite(object):
                     engine.pass_time(timedelta(seconds=time_passed))
                 except Exception:
                     LOG.exception("Exception encountered in pass_time of engine {}".format(engine))
+        if self.xy_updated:
+            self.determine_pyglet_xy()
+            self.xy_updated = False
 
     def start_animation(self, animation, override=False, **kwargs):
         if self.animation_player and not self.animation_player.iscomplete():
@@ -424,12 +392,6 @@ class Sprite(object):
         self.animation_player = None
         self.animation = None
 
-    def add_subsprite(self, subsprite, infront=True):
-        if infront:
-            self.infront_subsprites.append(subsprite)
-        else:
-            self.behind_subsprites.append(subsprite)
-
 
 class TextSprite(object):
 
@@ -467,43 +429,9 @@ class TextSprite(object):
         pass
 
     def draw(self, offset, scale):
-        self.label.x = (self.x + offset[0]) * scale
+        self.label.x = (self.x) * scale
         self.label.y = (self.y + offset[1]) * scale
         self.label.draw()
-
-
-class SpriteGroup(object):
-
-    def __init__(self, groupnum, keep_sorted=True, gl_texture=True, active=True):
-        self.groupnum = groupnum
-        self.keep_sorted = keep_sorted
-        self.sprites = []
-        self.active = active
-        self.gl_texture = gl_texture
-
-    def update(self):
-        if self.active and self.keep_sorted:
-            self.sort()
-
-    def add_sprite(self, sprite):
-        self.sprites.append(sprite)
-
-    def remove_sprite(self, sprite):
-        self.sprites.remove(sprite)
-
-    def sort(self):
-        insert_sort(self.sprites)
-
-    def draw(self, offset, scale):
-        if self.active:
-            spritelist = self.sprites
-            for sprite in spritelist:
-                sprite.draw(offset, scale)
-
-    def tick(self, time_passed):
-        if self.active:
-            for sprite in self.sprites:
-                sprite.tick(time_passed)
 
 
 class SpriteManager(object):
@@ -511,115 +439,54 @@ class SpriteManager(object):
 
     def __init__(self):
         self.load_atlas()
-        self.sprites = {}
-        self.sprite_groups = {}
-        self.sprite_group_nums = []
-        self.scale = 2.0
-        self.first = True
-        self.add_sprite_group(TILE_GROUP, keep_sorted=False)
-        self.add_sprite_group(UNIT_GROUP, keep_sorted=True)
-        self.add_sprite_group(OVERLAY_GROUP, keep_sorted=False, gl_texture=False)
-        self.gl_texture_enabled = False
+        self.sprites = []
+        self.batch = pyglet.graphics.Batch()
 
     def load_atlas(self):
-        self.image = pyglet.image.load(conf.atlas_image)
+        self.component_images = {}
         with open(conf.atlas_meta) as f:
             atlas_data = yaml.load(f)
+        self.atlas = pyglet.image.atlas.TextureAtlas(4096, 4096)
         self.components = {}
         for component_data in atlas_data["components"]:
             component = AscSpriteComponent.from_meta(component_data)
             self.components[component.name] = component
+            image_name = "{}.png".format(component.name)
+            image_path = os.path.join(conf.img_dir, image_name)
+            image = pyglet.image.load(image_path)
+            texture_region = self.atlas.add(image)
+            self.component_images[component.name] = texture_region
         self.animations = {}
         for animation_data in atlas_data["animations"]:
             animation = AscAnimation.load(animation_data)
             for stage in animation.stages:
                 stage.component = self.components[stage.component_name]
             self.animations[animation.name] = animation
-        self.texture = self.image.get_texture()
-        self.reverse_all_component_y()
-
-    def reverse_all_component_y(self):
-        for component in self.components.values():
-            component.rect.y = self.texture.height - component.rect.y - component.rect.height
-
-    def _enable_gl_texture(self):
-        gl.glEnable(self.texture.target)
-        gl.glBindTexture(self.texture.target, self.texture.id)
-        self.gl_texture_enabled = True
-
-    def _disable_gl_texture(self):
-        gl.glDisable(self.texture.target)
-        self.gl_texture_enabled = False
-
-    def set_gl_texture(self, enabled):
-        if self.gl_texture_enabled and not enabled:
-            self._disable_gl_texture()
-        elif not self.gl_texture_enabled and enabled:
-            self._enable_gl_texture()
 
     def get_component(self, component_name):
         return self.components[component_name]
 
-    def add_sprite_group(self, groupnum, *args, **kwargs):
-        if groupnum in self.sprite_group_nums:
-            raise KeyError(
-                "Sprite Group number '{}' is already registered with the SpriteManager"
-                .format(groupnum)
-            )
-        group = SpriteGroup(groupnum, *args, **kwargs)
-        self.sprite_groups[groupnum] = group
-        self.sprite_group_nums.append(groupnum)
-        self.sprite_group_nums.sort()
-
-    def add_sprite(self, group, sprite):
-        self.sprites[sprite] = group
-        self.sprite_groups[group].add_sprite(sprite)
+    def add_sprite(self, sprite):
+        self.sprites.append(sprite)
 
     def remove_sprite(self, sprite):
         group = self.sprites[sprite]
         self.sprite_groups[group].remove_sprite(sprite)
 
     def draw_sprites(self, offset):
-        offset = [x / self.scale for x in offset]
-        self.update_sprite_groups()
-        ProfilerManager.start("DRAW_SPRITES")
-        for groupnum in self.sprite_group_nums:
-            group = self.sprite_groups[groupnum]
-            self.draw_group(offset, group)
-        ProfilerManager.stop("DRAW_SPRITES")
-        self.set_gl_texture(False)
-
-    def draw_group(self, offset, group):
-        self.set_gl_texture(group.gl_texture)
-        group.draw(offset, self.scale)
+        self.batch.draw()
 
     def tick(self, time_passed):
-        for sprite_group in self.sprite_groups.values():
-            sprite_group.tick(time_passed)
-
-    def update_sprite_groups(self):
-        ProfilerManager.start("SORT_SPRITES")
-        for sprite_group in self.sprite_groups.values():
-            sprite_group.update()
-        ProfilerManager.stop("SORT_SPRITES")
-
-    def set_group_active(self, groupnum, active=True):
-        group = self.sprite_groups[groupnum]
-        group.active = active
-
-    def get_group_active(self, groupnum):
-        group = self.sprite_groups[groupnum]
-        return group.active
-
-    def toggle_group_active(self, groupnum):
-        group = self.sprite_groups[groupnum]
-        group.active = not group.active
+        for sprite in self.sprites:
+            sprite.tick(time_passed)
 
     def get_adjusted_position(self, x, y, offset):
-        x = ceil((x - offset[0]) / self.scale)
-        y = ceil((y - offset[1]) / self.scale)
+        x = ceil((x - offset[0]) / conf.sprite_scale)
+        y = ceil((y - offset[1]) / conf.sprite_scale)
         return x, y
 
     def get_animation(self, animation):
         return self.animations[animation]
 
+    def get_component_image(self, component_name):
+        return self.component_images[component_name]

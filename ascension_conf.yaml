@@ -21,6 +21,5 @@ logging:
             fmt: "> {timeplus} > {nameplus} > {levelplus} {message}"
             color: true
 disabled_profilers:
-    - MAIN_WINDOW_DRAW
     - SORT_SPRITES
-target_frame_rate: 30
+target_frame_rate: 60

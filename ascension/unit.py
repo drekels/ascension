@@ -53,7 +53,7 @@ class UnitGroup(object):
         for unit in self.units:
             sprite = unit.sprite
             sprite.x, sprite.y = self.get_unit_position(unit, tile_position)
-            sprite_manager.add_sprite(UNIT_GROUP, sprite)
+            sprite_manager.add_sprite(sprite)
 
     def get_unit_position(self, unit, tile_position):
         xdiff, ydiff = POSITIONS[self.positions[unit]]
@@ -121,7 +121,7 @@ class Unit(object):
 
     def make_sprite(self):
         stand_right = self.get_component("stand_right")
-        self.sprite = Sprite(component_name=stand_right, anchor="stand")
+        self.sprite = Sprite(component_name=stand_right, anchor="stand", z_group=UNIT_GROUP)
 
     def get_component(self, name):
         component_path = ".".join(["unit", self.name, name])

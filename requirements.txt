@@ -1,4 +1,3 @@
 git+https://github.com/drekels/python-sprite.git@STABLE
 git+https://github.com/drekels/pykfs.git@STABLE
-pyglet
 sortedcontainers

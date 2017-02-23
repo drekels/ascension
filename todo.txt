@@ -1,0 +1,23 @@
+
+Sprite infrastructure
+ * Create z ordering for sprites
+ * convert to ordered sprites
+
+Sprites
+ * Draw animations for Tyranasour
+ * Draw animations for Cyclops
+ * Draw animations for Horse Rider
+
+GUI
+ * Menus
+
+Units
+ * Tile unit contents
+ * Unit banners
+ * Unit groups
+ * Determine units to be drawn in group
+ * Unit group selection
+
+Villages
+ * Draw and put in village tile features
+ * Turn units invisble when they enter villages
