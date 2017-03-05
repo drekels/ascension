@@ -87,9 +87,6 @@ class MainWindowManager(object):
         self.pyglet_window.clear()
         if self.position_updated:
             self.translate()
-        pyglet.gl.glColor4f(*self.background_color)
-        drawRect(0, 0, self.width, self.height)
-        pyglet.gl.glColor4f(1, 1, 1, 1)
         SpriteManager.draw_sprites(self.get_window_offset())
         ProfilerManager.stop("MAIN_WINDOW_DRAW")
 

@@ -130,14 +130,14 @@ class AtlasGenerator(object):
                 self.load_image_dir(path, tokens + [tail])
 
     def load_image(self, image_path, tokens):
-            tokens_temp = list(tokens)
-            load_image_func = None
-            while tokens_temp and not load_image_func:
-                load_image_func_name = self.load_map.get(tuple(tokens_temp), None)
-                if load_image_func_name:
-                    load_image_func = getattr(self, load_image_func_name)
-                tokens_temp.pop()
-            (load_image_func or self.load_image_default)(image_path, tokens)
+        tokens_temp = list(tokens)
+        load_image_func = None
+        while tokens_temp and not load_image_func:
+            load_image_func_name = self.load_map.get(tuple(tokens_temp), None)
+            if load_image_func_name:
+                load_image_func = getattr(self, load_image_func_name)
+            tokens_temp.pop()
+        (load_image_func or self.load_image_default)(image_path, tokens)
 
     def load_extra_meta(self, meta_path, tokens):
         with open(meta_path) as f:
