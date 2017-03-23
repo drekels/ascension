@@ -49,7 +49,7 @@ class UnitGroup(object):
         insert_sort(self.units)
 
     def add_sprites(self, sprite_manager):
-        tile_position = self.get_tile_position()
+        tile_position = self.get_tile_position(self.x, self.y)
         for unit in self.units:
             sprite = unit.sprite
             sprite.x, sprite.y = self.get_unit_position(unit, tile_position)
@@ -61,8 +61,9 @@ class UnitGroup(object):
 
         return  xtile + xdiff, ytile + ydiff
 
-    def get_tile_position(self):
-        return TileMap.get_tile_position(self.x, self.y)
+    def get_tile_position(self, x, y):
+        tile = TileMap.gettile(x, y)
+        return tile.x_pos, tile.y_pos
 
     def move(self, x, y):
         if self.intransit:
@@ -83,7 +84,7 @@ class UnitGroup(object):
         self.x, self.y = x, y
         self.intransit = True
         self.units_in_transit = []
-        position = TileMap.get_tile_position(x, y)
+        position = self.get_tile_position(x, y)
         for unit in self.units:
             self.units_in_transit.append(unit)
             new_position = self.get_unit_position(unit, position)

@@ -1,0 +1,5 @@
+components:
+  - name: mountain_1
+    stand_x: 6
+    stand_y: 6
+    exclusion_radius: 7

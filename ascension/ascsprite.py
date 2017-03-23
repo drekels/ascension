@@ -349,6 +349,8 @@ class Sprite(object):
                 raise Exception("{0} set to animation {1} while already in animation {2}".format(
                     self, animation, self.animation
                 ))
+        if not issubclass(type(animation), AscAnimation):
+            animation = SpriteManager.get_animation(animation)
         self.animation = animation
         self.animation_player = AscAnimationPlayer(self, self.animation)
         self.animation_player.add_end_callback(self.clear_complete_animation)

@@ -1,0 +1,88 @@
+components:
+  - name: stand_right
+    stand_x: 8
+    stand_y: 15
+  - name: stand_left
+    stand_x: 8
+    stand_y: 15
+  - name: walk_right_1
+    stand_x: 8
+    stand_y: 15
+  - name: walk_right_2
+    stand_x: 8
+    stand_y: 15
+  - name: walk_right_3
+    stand_x: 8
+    stand_y: 16
+  - name: walk_bright_1
+    stand_x: 8
+    stand_y: 15
+  - name: walk_bright_2
+    stand_x: 8
+    stand_y: 15
+  - name: walk_bright_3
+    stand_x: 8
+    stand_y: 16
+  - name: walk_left_1
+    stand_x: 8
+    stand_y: 15
+  - name: walk_left_2
+    stand_x: 8
+    stand_y: 15
+  - name: walk_left_3
+    stand_x: 8
+    stand_y: 16
+  - name: walk_bleft_1
+    stand_x: 9
+    stand_y: 15
+  - name: walk_bleft_2
+    stand_x: 8
+    stand_y: 15
+  - name: walk_bleft_3
+    stand_x: 8
+    stand_y: 16
+animations:
+  - name: walk_right
+    anchor: stand
+    stages:
+      - component_name: walk_right_3
+        duration: 0.1
+      - component_name: walk_right_1
+        duration: 0.18
+      - component_name: walk_right_3
+        duration: 0.1
+      - component_name: walk_right_2
+        duration: 0.18
+  - name: walk_bright
+    anchor: stand
+    stages:
+      - component_name: walk_bright_3
+        duration: 0.1
+      - component_name: walk_bright_1
+        duration: 0.18
+      - component_name: walk_bright_3
+        duration: 0.1
+      - component_name: walk_bright_2
+        duration: 0.18
+  - name: walk_left
+    anchor: stand
+    stages:
+      - component_name: walk_left_3
+        duration: 0.1
+      - component_name: walk_left_1
+        duration: 0.18
+      - component_name: walk_left_3
+        duration: 0.1
+      - component_name: walk_left_2
+        duration: 0.18
+  - name: walk_bleft
+    anchor: stand
+    stages:
+      - component_name: walk_bleft_3
+        duration: 0.1
+      - component_name: walk_bleft_1
+        duration: 0.18
+      - component_name: walk_bleft_3
+        duration: 0.1
+      - component_name: walk_bleft_2
+        duration: 0.18

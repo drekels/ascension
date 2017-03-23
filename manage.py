@@ -4,8 +4,8 @@ import sys
 
 
 if sys.argv[1] == "make_atlas":
-    AtlasGenerator.make_atlas(sys.argv[2])
+    AtlasGenerator.make_atlas(base_directory=sys.argv[2])
 elif sys.argv[1] == "make_sea":
-    SeaGenerator.make_sea(sys.argv[2])
+    SeaGenerator.make_sea(outdir=sys.argv[2])
 else:
     raise Exception("No manage command '{}'".format(sys.argv[1]))

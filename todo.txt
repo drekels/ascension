@@ -1,12 +1,27 @@
 
 Sprite infrastructure
  * Create z ordering for sprites
+ * Create shared state sprites
+ * ensure descrete scrolling
  * convert to ordered sprites
 
 Sprites
  * Draw animations for Tyranasour
  * Draw animations for Cyclops
  * Draw animations for Horse Rider
+
+Tiles
+ * Render sea edges
+ * Draw Grasslands
+ * Arrange mountains
+ * Arrange Forests
+ * Draw wastes + features + arrange
+ * Draw Badlands features + arrange
+ * Draw Dunes
+ * Draw Swamps + features + arrange
+ * Draw jungle features + arrange
+ * Create / Delete tiles that are out of view
+ * Wrap tiles
 
 GUI
  * Menus

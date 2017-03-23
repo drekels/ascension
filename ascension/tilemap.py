@@ -1,74 +1,158 @@
 import logging
 import math
+from datetime import timedelta
+from decimal import Decimal
 
 from Queue import PriorityQueue
 
 from ascension.ascsprite import TILE_GROUP, UNIT_GROUP, Sprite, TextSprite
 from ascension.util import Singleton
+from ascension.perlin import TileablePerlinGenerator
 
 LOG = logging.getLogger(__name__)
 
 
+BUNCH_TRANSLATIONS = {
+    0: (0, 0),
+    1: (-1, 0),
+    2: (0, 1),
+    3: (-1, 1),
+    4: (1, -1),
+    5: (0, -1),
+    6: (1, 0),
+}
+
+
+def get_tile_bunch_center(x, y):
+    orientation = (x + 5*y) % 7
+    xt, yt = BUNCH_TRANSLATIONS[orientation]
+    return x + xt, y + yt
+
+
 class TileMap(object):
     __metaclass__ = Singleton
+    tile_width = 71
+    tile_height = 30
+    horz_point_width = 16
 
     def __init__(self):
         self.moverules = SimpleHexMoveRules()
         self.reset_tiles()
 
     def reset_tiles(self):
-        self.tiles = {}
+        self.tile_map = {}
+        self.tiles = []
         self.count = 0
 
-    def generate_square(self, width=10, height=10):
-        min_x = -(width - 1) / 2
-        max_x = (width + 1)/ 2
-        min_y = -(height - 1) / 2
-        max_y = (height + 1)/ 2
-        for x in range(min_x, max_x):
+    def generate_map(self):
+        self.generate_square()
+        self.determine_outer_limits()
+        self.assign_terrain()
+
+
+    def generate_square(self, width=14):
+        self.width, self.height = width, width
+        self.min_x = -(self.width - 1) / 2
+        self.max_x = (self.width + 1)/ 2
+        self.min_y = -(self.height - 1) / 2
+        self.max_y = (self.height + 1)/ 2
+        for x in range(self.min_x, self.max_x):
             y_offset = -int(math.ceil(x / 2.0))
-            for y in range(min_y + y_offset, max_y + y_offset):
-                self.addtile(Tile(x, y))
+            for y in range(self.min_y + y_offset, self.max_y + y_offset):
+                x_pos, y_pos = self.get_tile_pos(x, y)
+                terrain = x % 2 and "sea" or "plains"
+                tile = Tile(x, y, x_pos=x_pos, y_pos=y_pos, terrain=terrain)
+                self.addtile(tile)
+
+    def determine_outer_limits(self):
+        self.max_x_pos, self.min_x_pos = 0, 0
+        self.max_y_pos, self.min_y_pos = 0, 0
+        for tile in self.tiles:
+            self.max_x_pos = tile.x_pos > self.max_x_pos and tile.x_pos or self.max_x_pos
+            self.min_x_pos = tile.x_pos < self.min_x_pos and tile.x_pos or self.min_x_pos
+            self.max_y_pos = tile.y_pos > self.max_y_pos and tile.y_pos or self.max_y_pos
+            self.min_y_pos = tile.y_pos < self.min_y_pos and tile.y_pos or self.min_y_pos
+
+
+    def assign_terrain(self):
+        top_edge = self.max_y_pos
+        bottom_edge = self.min_y_pos - self.tile_height/2
+        frame_height = top_edge - bottom_edge
+        left_edge = self.min_x_pos - self.tile_width/2 + self.horz_point_width
+        right_edge = self.max_x_pos + (self.tile_width+1)/2
+        frame_width = right_edge - left_edge
+        sea_perlin = TileablePerlinGenerator(dimensions=[4, 4], seed=9)
+        bunch_values = {}
+        for tile in self.tiles:
+            bunch = get_tile_bunch_center(tile.x, tile.y)
+            bunch_tile = self.gettile(*bunch)
+            if bunch_tile and bunch not in bunch_values:
+                perlin_x = (bunch_tile.x_pos - left_edge) / Decimal(frame_width)
+                perlin_y = (bunch_tile.y_pos - bottom_edge) / Decimal(frame_height)
+                perlin_value = sea_perlin.get_value(perlin_x, perlin_y)
+                bunch_values[bunch] = perlin_value
+        ordered_bunches = sorted([(j, i) for i, j in bunch_values.items()])
+        bunch_terrains = {}
+        midpoint = len(ordered_bunches) / 2
+        for _, bunch in ordered_bunches[:midpoint]:
+            bunch_terrains[bunch] = "sea"
+        for _, bunch in ordered_bunches[midpoint:]:
+            bunch_terrains[bunch] = "plains"
+        for tile in self.tiles:
+            bunch = get_tile_bunch_center(tile.x, tile.y)
+            bunch = self.get_wrapped_coor(*bunch)
+            tile.terrain = bunch and bunch_terrains[bunch] or 'sea'
+
 
     def addtile(self, tile):
-        if tile.x not in self.tiles:
-            self.tiles[tile.x] = {}
-        elif tile.y in self.tiles[tile.x]:
+        if tile.x not in self.tile_map:
+            self.tile_map[tile.x] = {}
+        elif tile.y in self.tile_map[tile.x]:
             raise KeyError(
                 "TileMap already contains a tile for point ({}, {})"
                 .format(tile.x, tile.y)
             )
-        self.tiles[tile.x][tile.y] = tile
+        self.tile_map[tile.x][tile.y] = tile
+        self.tiles.append(tile)
         self.count += 1
 
+    def get_wrapped_coor(self, x, y):
+        if x not in self.tile_map:
+            halfwidth = self.width / 2
+            y += ((x + halfwidth) / self.width) * halfwidth
+            x = (x + halfwidth) % self.width - halfwidth
+            return self.get_wrapped_coor(x, y)
+        elif y not in self.tile_map[x]:
+            return None
+        return x, y
+
     def gettile(self, x, y):
-        return self.tiles[x][y]
+        coor = self.get_wrapped_coor(x, y)
+        if coor:
+            x, y = coor
+            return self.tile_map[x][y]
+        return None
 
     def hastile(self, x, y):
-        return x in self.tiles and y in self.tiles[x]
+        return x in self.tile_map and y in self.tile_map[x]
 
     def get_tile_sprites(self):
-        for column in self.tiles:
-            for tile in column:
-                yield tile.get_sprite()
+        for tile in self.tiles:
+            yield tile.get_sprite()
 
     def add_tile_sprites(self, sprite_manager, anchor=(0, 0)):
-        for x in self.tiles:
-            for y in self.tiles[x]:
-                self.add_tile_sprite(x, y, sprite_manager, anchor=anchor)
-
-    def get_horz_point_width(self):
-        return 16
+        for tile in self.tiles:
+            self.add_tile_sprite(tile, sprite_manager)
 
     def get_vert_x_shift(self):
-        return self.get_tile_height() / 2
+        return self.tile_height / 2
 
     def get_perspective_sin(self):
         if hasattr(self, "perspective_sin"):
             return self.perspective_sin
         i = self.get_vert_x_shift()
-        x = self.get_tile_width() / 2.0
-        z = self.get_tile_width()/2.0 - self.get_horz_point_width()
+        x = self.tile_width / 2.0
+        z = self.tile_width/2.0 - self.horz_point_width
         self.perspective_sin = i / math.sqrt(x**2-z**2)
         return self.perspective_sin
 
@@ -81,40 +165,26 @@ class TileMap(object):
     def get_vert_speed_multiplier(self):
         return self.get_perspective_sin()
 
-    def add_tile_sprite(self, x, y, sprite_manager, anchor=(0, 0)):
-        tile = self.tiles[x][y]
+    def get_tile_pos(self, x, y, anchor=(0, 0)):
+        width, height = self.tile_width, self.tile_height
+        x_pos = anchor[0] + x * (width - self.horz_point_width)
+        y_pos = anchor[1] + y * height + x * self.get_vert_x_shift()
+        return x_pos, y_pos
+
+    def add_tile_sprite(self, tile, sprite_manager):
         s = tile.get_sprite()
-        #coor = tile.get_coor_sprite()
-        width, height = self.get_tile_width(), self.get_tile_height()
-        x_position = anchor[0] + x * (width - self.get_horz_point_width())
-        y_position = anchor[1] + y * height + x * self.get_vert_x_shift()
-        s.x, s.y, s.z = x_position, y_position, 0.0
-        #coor.set_position(x_position, y_position)
         sprite_manager.add_sprite(s)
-        #sprite_manager.add_sprite(OVERLAY_GROUP, coor)
         for feature_sprite in tile.get_feature_sprites():
-            feature_sprite.x = feature_sprite.x + x_position
-            feature_sprite.y = feature_sprite.y + y_position
             sprite_manager.add_sprite(feature_sprite)
-
-
-    def get_tile_width(self):
-        return self.tiles[0][0].get_sprite().component_width
-
-    def get_tile_height(self):
-        return self.tiles[0][0].get_sprite().component_height
 
     def get_clicked_tile(self, x, y):
         LOG.debug("Entering get_clicked_tile...")
         LOG.debug("clicked ({}, {})".format(x, y))
 
         x, y = int(x), int(y)
-        horz_point_width = self.get_horz_point_width()
-        tile_width, tile_height = self.get_tile_width(), self.get_tile_height()
+        horz_point_width = self.horz_point_width
 
-        LOG.debug("tile dimensions ({}, {})".format(tile_width, tile_height))
-
-        box_width, box_height = tile_width - horz_point_width, tile_height / 2
+        box_width, box_height = self.tile_width - horz_point_width, self.tile_height / 2
         box_x, box_y = x / box_width, y / box_height
         extra_x, extra_y = x % box_width, y % box_height
         left = (box_x, (box_y - box_x + 1) / 2)
@@ -135,15 +205,15 @@ class TileMap(object):
 
         return value
 
-    def get_tile_position(self, x, y):
-        tile = self.tiles[x][y]
-        return tile.sprite.x, tile.sprite.y
-
 
 class Tile(object):
 
-    def __init__(self, x, y):
+    def __init__(self, x, y, x_pos, y_pos, terrain):
+        self.terrain = terrain
         self.x, self.y = x, y
+        self.x_pos = x_pos
+        self.y_pos = y_pos
+        self.imgnum = (self.x % 2) * 2 + (self.y - self.x / 2) % 2
         self.sprite = None
         self.coor_sprite = None
         self.feature_sprites = None
@@ -165,9 +235,21 @@ class Tile(object):
         return self.feature_sprites
 
     def make_sprite(self):
+        component_name = "terrain.grassland"
+        if self.terrain == 'sea':
+            component_name = "terrain.sea.sea_{:0>2}_00".format(self.imgnum)
         self.sprite = Sprite(
-            component_name="terrain.grassland",
+            x=self.x_pos, y=self.y_pos,
+            component_name=component_name,
             z_group=TILE_GROUP,
+        )
+        if self.terrain == 'sea':
+            self.start_tile_animation()
+
+    def start_tile_animation(self, extra_time=timedelta(0)):
+        self.sprite.start_animation(
+            "terrain.sea.sea_{}".format(self.imgnum), extra_time=extra_time,
+            end_callback=self.start_tile_animation
         )
 
     def make_coor_sprite(self):
@@ -184,6 +266,15 @@ class Tile(object):
         sprite = Sprite(component_name=feature_name, x=x, y=y, z_group=UNIT_GROUP, anchor="stand")
         self.feature_sprites.append(sprite)
 
+    def __repr__(self):
+        return unicode(self)
+
+    def __str__(self):
+        return unicode(self)
+
+    def __unicode__(self):
+        return "Tile({x}, {y}, {x_pos}, {y_pos}, {terrain})".format(**self.__dict__)
+
 
 class FeatureMap(object):
 
@@ -194,6 +285,7 @@ class FeatureMap(object):
 
 
     def place_features(self):
+        return
         self.features.append(("terrain.features.mountain_1", 0, 0))
         self.features.append(("terrain.features.mountain_1", 8, 0))
         self.features.append(("terrain.features.mountain_1", -8, 0))
