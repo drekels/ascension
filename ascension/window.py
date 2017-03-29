@@ -91,8 +91,11 @@ class MainWindowManager(object):
         ProfilerManager.stop("MAIN_WINDOW_DRAW")
 
     def translate(self):
-        gl.glTranslatef(-self.xdiff * conf.sprite_scale, -self.ydiff * conf.sprite_scale, 0.0)
-        self.xdiff, self.ydiff = 0, 0
+        xdiffint = int(self.xdiff * conf.sprite_scale)
+        ydiffint = int(self.ydiff * conf.sprite_scale)
+        gl.glTranslatef(-xdiffint, -ydiffint, 0.0)
+        self.xdiff -= float(xdiffint) / conf.sprite_scale
+        self.ydiff -= float(ydiffint) / conf.sprite_scale
         self.position_updated = False
 
     def get_window_offset(self):

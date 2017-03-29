@@ -1,9 +1,6 @@
 
 Sprite infrastructure
- * Create z ordering for sprites
  * Create shared state sprites
- * ensure descrete scrolling
- * convert to ordered sprites
 
 Sprites
  * Draw animations for Tyranasour
