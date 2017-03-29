@@ -59,8 +59,8 @@ class Ascension(object):
         TileMap.generate_map()
         TileMap.add_tile_sprites(SpriteManager)
         unit_group = UnitGroup(0, 0, units=[
-            #("sword", "top_left"),
-            #("spear", "top"),
+            ("sword", "top_left"),
+            ("spear", "top"),
             ("bow", "bottom_left"),
             ("sword", "bottom_right"),
         ])

@@ -18,8 +18,8 @@ LOG = logging.getLogger(__name__)
 
 
 TILE_GROUP = 0
-UNIT_GROUP = 10
-OVERLAY_GROUP = 20
+UNIT_GROUP = -10
+OVERLAY_GROUP = -20
 ON_TRANSITION_END = ON_ANIMATION_END
 
 
@@ -324,8 +324,9 @@ class Sprite(object):
         )
         if draw_x != self.pyglet_sprite.x or draw_y != self.pyglet_sprite.y:
             draw_z = self.z_group + 0.001 * self.y + 0.00001 * self.x
-            print self.component_name, self.x, self.y, draw_z
-            self.pyglet_sprite.x, self.pyglet_sprite.y, self.pyglet_sprite.z = draw_x, draw_y, draw_z
+            self.pyglet_sprite.x = draw_x
+            self.pyglet_sprite.y = draw_y
+            self.pyglet_sprite.order = draw_z
 
 
     def get_component_center(self):
