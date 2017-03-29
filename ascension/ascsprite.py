@@ -322,8 +322,10 @@ class Sprite(object):
             (self.y + self.displacement_y - self.component_height + self.anchor_y)
             * conf.sprite_scale
         )
-        draw_z = self.z_group
-        self.pyglet_sprite.x, self.pyglet_sprite.y, self.pyglet_sprite.z = draw_x, draw_y, draw_z
+        if draw_x != self.pyglet_sprite.x or draw_y != self.pyglet_sprite.y:
+            draw_z = self.z_group + 0.001 * self.y + 0.00001 * self.x
+            print self.component_name, self.x, self.y, draw_z
+            self.pyglet_sprite.x, self.pyglet_sprite.y, self.pyglet_sprite.z = draw_x, draw_y, draw_z
 
 
     def get_component_center(self):
