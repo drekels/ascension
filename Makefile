@@ -9,9 +9,9 @@ PYTHON_FILES = $(shell find . -name \*.py -not -path "./$(TOOL_DIR)/*" -not -pat
                "./$(TOOL_DIR)/*" -not -path "./test/*" -not -name setup.py)
 
 MANAGE_SCRIPT = manage.py
-MAKE_ATLAS_COMMAND = make_atlas
-MAKE_SEA_COMMAND = make_sea
-MAKE_SEA_SCRIPT = $(TOOL_DIR)/make_sea.py
+
+
+
 TOOL_SCRIPTS = $(shell find $(TOOL_DIR) -name \*.py)
 IMAGE_FILES = $(shell find $(IMAGE_DIR) -name \*.png)
 ANIMATION_META = $(shell find $(IMAGE_DIR) -name \*.yaml)
@@ -36,7 +36,6 @@ DATA_DIR := data
 ATLAS := $(DATA_DIR)/ASCENSION_ATLAS.png
 ATLAS_META := $(DATA_DIR)/ASCENSION_ATLAS_META.json
 
-SEA := $(shell find $(TERRAIN_IMAGE_DIR) -name sea\*.png)
 
 dist: setup.py $(PYTHON_FILES) requirements.txt README MANIFEST.in MAKEFILE
 	rm -f -r dist
@@ -45,9 +44,22 @@ dist: setup.py $(PYTHON_FILES) requirements.txt README MANIFEST.in MAKEFILE
 data:
 	mkdir data
 
+MAKE_FOREST_COMMAND = make_forest
+MAKE_FOREST_SCRIPT = $(TOOL_DIR)/make_forest.py
+
+.PHONY: forest
+forest: $(MAKE_FOREST_SCRIPT)
+	$(TEST_ENV_PYTHON) $(MANAGE_SCRIPT) $(MAKE_FOREST_COMMAND) $(TERRAIN_IMAGE_DIR)
+
+MAKE_SEA_COMMAND = make_sea
+MAKE_SEA_SCRIPT = $(TOOL_DIR)/make_sea.py
+
 .PHONY: sea 
 sea: $(MAKE_SEA_SCRIPT)
 	$(TEST_ENV_PYTHON) $(MANAGE_SCRIPT) $(MAKE_SEA_COMMAND) $(TERRAIN_IMAGE_DIR)
+
+
+MAKE_ATLAS_COMMAND = make_atlas
 
 .PHONY: atlas 
 atlas: $(ATLAS) 

@@ -8,6 +8,7 @@ from Queue import PriorityQueue
 from ascension.ascsprite import TILE_GROUP, UNIT_GROUP, Sprite, TextSprite
 from ascension.util import Singleton
 from ascension.perlin import TileablePerlinGenerator
+from ascension.settings import AscensionConf as conf
 
 LOG = logging.getLogger(__name__)
 
@@ -145,25 +146,7 @@ class TileMap(object):
             self.add_tile_sprite(tile, sprite_manager)
 
     def get_vert_x_shift(self):
-        return self.tile_height / 2
-
-    def get_perspective_sin(self):
-        if hasattr(self, "perspective_sin"):
-            return self.perspective_sin
-        i = self.get_vert_x_shift()
-        x = self.tile_width / 2.0
-        z = self.tile_width/2.0 - self.horz_point_width
-        self.perspective_sin = i / math.sqrt(x**2-z**2)
-        return self.perspective_sin
-
-    def get_diagonal_speed_multiplier(self):
-        if hasattr(self, "diagonal_speed_multiplier"):
-            return self.diagonal_speed_multiplier
-        self.diagonal_speed_multiplier = math.sqrt(self.get_perspective_sin()**2 + 3) / 2
-        return self.diagonal_speed_multiplier
-
-    def get_vert_speed_multiplier(self):
-        return self.get_perspective_sin()
+        return conf.tile_height / 2
 
     def get_tile_pos(self, x, y, anchor=(0, 0)):
         width, height = self.tile_width, self.tile_height

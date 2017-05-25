@@ -2,6 +2,7 @@ from ascension.util import SettingSet, Singleton, SettingBased
 from pykfs.kfslog import CONSOLE_HANDLER, CONSOLE_FORMATTER
 import yaml
 import os
+import math
 
 
 
@@ -12,14 +13,11 @@ game_settings = SettingSet([
     {
         "name": "target_frame_rate",
         "default": 60,
+        "parse": int,
     },
     {
         "name": "slow_frame_log_level",
         "default": "WARNING"
-    },
-    {
-        "name": "window_size",
-        "default": (640, 480),
     },
     {
         "name": "logging",
@@ -57,11 +55,13 @@ game_settings = SettingSet([
     },
     {
         "name": "window_width",
-        "default": 1000
+        "default": 1000,
+        "parse": int,
     },
     {
         "name": "window_height",
         "default": 600,
+        "parse": int,
     },
     {
         "name": "disabled_profilers",
@@ -69,8 +69,34 @@ game_settings = SettingSet([
     },
     {
         "name": "sprite_scale",
-        "default": 2
-    }
+        "default": 2,
+        "parse": int,
+    },
+    {
+        "name": "tile_width",
+        "default": 71,
+        "parse": int,
+    },
+    {
+        "name": "tile_height",
+        "default": 30,
+        "parse": int,
+    },
+    {
+        "name": "horz_point_width",
+        "default": 16,
+        "parse": int,
+    },
+    {
+        "name": "frame_tile_count_horz",
+        "default": 2,
+        "parse": int,
+    },
+    {
+        "name": "frame_tile_count_vert",
+        "default": 2,
+        "parse": int,
+    },
 ])
 
 player_settings = SettingSet([
@@ -90,6 +116,14 @@ player_settings = SettingSet([
     }
 ])
 
+def calc_property(func):
+    def new_func(self):
+        cache_name = "_{}".format(func.__name__)
+        if not hasattr(self, cache_name):
+            setattr(self, cache_name, func(self))
+        return getattr(self, cache_name)
+    return property(new_func)
+
 
 class AscensionConf(SettingBased):
     __metaclass__ = Singleton
@@ -101,6 +135,43 @@ class AscensionConf(SettingBased):
             with open(CONF_FILE_NAME) as f:
                 values = yaml.load(f) or {}
         super(AscensionConf, self).__init__(**values)
+
+    @calc_property
+    def perspective_sin(self):
+        i = self.tile_height / 2.0
+        x = self.tile_width / 2.0
+        z = self.tile_width / 2.0 - self.horz_point_width
+        return i / math.sqrt(x**2-z**2)
+
+    @calc_property
+    def diagonal_distance_multiplier(self):
+        return math.sqrt(self.perspective_sin**2 + 3) / 2
+
+    @calc_property
+    def tile_point_slope(self):
+        return self.tile_height / 2 / (self.horz_point_width - 1)
+
+    @calc_property
+    def tile_center_width(self):
+        return self.tile_width - 2*self.horz_point_width
+
+    @calc_property
+    def frame_width(self):
+        return (
+            self.frame_tile_count_horz * (self.tile_center_width+self.horz_point_width-1)
+        )
+
+    @calc_property
+    def frame_height(self):
+        return self.frame_tile_count_vert * self.tile_height
+
+    @calc_property
+    def frame_pixel_count(self):
+        return self.frame_width * self.frame_height
+
+
+AscensionConf.reset()
+
 
 class PlayerConf(SettingBased):
     __metaclass__ = Singleton

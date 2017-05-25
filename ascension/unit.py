@@ -4,7 +4,7 @@ import random
 from ascension.util import Singleton, insert_sort, IllegalActionException
 from ascension.ascsprite import SpriteManager, Sprite, UNIT_GROUP
 from ascension.tilemap import TileMap
-from ascension.settings import PlayerConf
+from ascension.settings import AscensionConf as conf, PlayerConf
 
 
 LOG = logging.getLogger(__name__)
@@ -93,8 +93,8 @@ class UnitGroup(object):
     def get_move_direction(self, x, y):
         direction = (x - self.x, y - self.y)
         unit_speed = PlayerConf.unit_move_speed
-        vert_speed = unit_speed * TileMap.get_vert_speed_multiplier()
-        diag_speed = unit_speed * TileMap.get_diagonal_speed_multiplier()
+        vert_speed = unit_speed * conf.perspective_sin
+        diag_speed = unit_speed * conf.diagonal_distance_multiplier
         values = {
             (1, 0): ("right", "bright", diag_speed),
             (1, -1): ("right", "right", diag_speed),

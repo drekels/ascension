@@ -12,14 +12,17 @@ class Singleton(type):
     def reset(cls, *args, **kwargs):
         cls.instance = cls(*args, **kwargs)
 
-    def __getattribute__(cls, attr, _fromclass=False):
+    def __getattribute__(cls, attr):
         instance = super(Singleton, cls).__getattribute__("instance")
         if instance and hasattr(instance, attr):
             return getattr(instance, attr)
-        return super(Singleton, cls).__getattribute__(attr)
+        class_attr = super(Singleton, cls).__getattribute__(attr)
+        return class_attr
 
 
     def __getattr__(cls, attr):
+        attr = getattr(cls.instance, attr)
+        print attr, type(attr)
         return getattr(cls.instance, attr)
 
 

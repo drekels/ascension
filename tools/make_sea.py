@@ -3,34 +3,15 @@ import os
 import yaml
 import signal
 import time
-import sys
 from threading import Thread
 from decimal import Decimal, getcontext
+
 from sortedcontainers import SortedList
-
 from PIL import Image
+
 from ascension.perlin import TileablePerlinGenerator
-
-
-def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 70, fill = u'\u2588'):
-    """
-    Call in a loop to create terminal progress bar
-    @params:
-        iteration   - Required  : current iteration (Int)
-        total       - Required  : total iterations (Int)
-        prefix      - Optional  : prefix string (Str)
-        suffix      - Optional  : suffix string (Str)
-        decimals    - Optional  : positive number of decimals in percent complete (Int)
-        length      - Optional  : character length of bar (Int)
-        fill        - Optional  : bar fill character (Str)
-    """
-    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
-    filledLength = int(length * iteration // total)
-    bar = fill * filledLength + '-' * (length - filledLength)
-    print u'\r{} |{}| {}% {}'.format(prefix, bar, percent, suffix),
-    if iteration == total:
-        print
-    sys.stdout.flush()
+from ascension.settings import AscensionConf as conf
+from tools.util import is_in_hex, print_progress_bar, get_topleft_tile_point
 
 
 color_map = [
@@ -83,7 +64,6 @@ class FrameGenerator(object):
         for i in range(len(self.point_list)):
             x, y = self.point_list[-(i+1)][1]
             self.pixels[x, y] = color
-            # print "({}, {}) => {}".format(x, y, color)
             if (i+1) / self.total_pixels > threshhold:
                 new_threshhold, color = self.color_map.pop()
                 threshhold += new_threshhold
@@ -126,15 +106,9 @@ class SeaGenerator(object):
         for spec in self.perlin_setup:
             generator = TileablePerlinGenerator(**spec)
             self.perlin_generators.append(generator)
-        self.frame_width = (
-            self.hex_count_horz * (self.hex_center_width + self.hex_horz_point_width - 1)
-        )
-        self.frame_height = self.hex_count_vert * self.hex_height
-        self.pixel_count = self.frame_width * self.frame_height * self.animation_frame_count
+        self.pixel_count = conf.frame_pixel_count * self.animation_frame_count
         self.animation_duration = Decimal(self.animation_duration)
         self.frame_duration = self.animation_duration / self.animation_frame_count
-        self.hex_width = self.hex_center_width + 2*self.hex_horz_point_width
-        self.hex_point_slope = self.hex_height / 2 / self.hex_horz_point_width
         self.error = None
         self.frame_generators = []
 
@@ -171,7 +145,7 @@ class SeaGenerator(object):
 
     def make_animations(self):
         self.meta = {"animations": []}
-        for hexnum in range(self.hex_count_vert * self.hex_count_horz):
+        for hexnum in range(conf.frame_tile_count_vert * conf.frame_tile_count_horz):
             stages = []
             for framenum in range(self.animation_frame_count):
                 component_name = self.get_hex_name(framenum, hexnum)
@@ -199,7 +173,7 @@ class SeaGenerator(object):
         z = Decimal(framenum) / self.animation_frame_count
         frame_generator = FrameGenerator(
             z=z, perlin_generators=self.perlin_generators, color_map=color_map,
-            width=self.frame_width, height=self.frame_height,
+            width=conf.frame_width, height=conf.frame_height,
         )
         self.frame_generators.append(frame_generator)
         frame_image, frame_pixels = frame_generator.get_frame()
@@ -208,33 +182,25 @@ class SeaGenerator(object):
 
     def make_hexes(self, framenum, frame_pixels):
         hexnum = 0
-        for i in range(self.hex_count_horz):
-            for j in range(self.hex_count_vert):
-                x = i * (self.hex_center_width + self.hex_horz_point_width - 1)
-                y = j * self.hex_height - (i % 2) * self.hex_height / 2
+        for i in range(conf.frame_tile_count_horz):
+            for j in range(conf.frame_tile_count_vert):
+                x, y = get_topleft_tile_point(i, j)
                 hex_img = self.cut_hex(frame_pixels, x, y)
                 self.save_hex(hex_img, framenum, hexnum)
                 hexnum += 1
 
     def cut_hex(self, frame_pixels, topleft_x, topleft_y):
-        hex_img = Image.new('RGBA', (self.hex_width, self.hex_height))
+        hex_img = Image.new('RGBA', (conf.tile_width, conf.tile_height))
         hex_pixels = hex_img.load()
-        a1, b1 = -self.hex_point_slope, self.hex_horz_point_width - 1
-        a2, b2 = self.hex_point_slope, b1
-        a3 = self.hex_point_slope
-        b3 = self.hex_height / 2 - 1 - a3*(self.hex_width - 1)
-        a4 = -self.hex_point_slope
-        b4 = self.hex_height / 2 - 1 - a4*(self.hex_width - 1)
-        for x in range(self.hex_width):
-            for y in range(self.hex_height):
-                if y < a1*x + b1 or y > a2*x + b2 or y < a3*x + b3 or y > a4*x + b4:
-                    color = (0, 0, 0, 0)
-                else:
-                    frame_x = (x + topleft_x) % self.frame_width
-                    frame_y = (y + topleft_y) % self.frame_height
+        for x in range(conf.tile_width):
+            for y in range(conf.tile_height):
+                if is_in_hex(x, y):
+                    frame_x = (x + topleft_x) % conf.frame_width
+                    frame_y = (y + topleft_y) % conf.frame_height
                     color = frame_pixels[frame_x, frame_y]
+                else:
+                    color = (0, 0, 0, 0)
                 hex_pixels[x, y] = color
-
         return hex_img
 
     def save_hex(self, hex_img, framenum, hexnum):
@@ -255,4 +221,4 @@ class SeaGenerator(object):
         while not self.error and pixel_sum < self.pixel_count:
             time.sleep(self.progress_bar_sleep)
             pixel_sum = sum([x.pixels_calculated for x in self.frame_generators])
-            printProgressBar(pixel_sum, self.pixel_count)
+            print_progress_bar(pixel_sum, self.pixel_count)

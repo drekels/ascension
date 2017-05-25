@@ -1,0 +1,91 @@
+feature_maps:
+- features:
+  - {name: tree4, x: 7, y: 18}
+  - {name: tree1, x: 12, y: 12}
+  - {name: tree3, x: 22, y: 7}
+  - {name: tree4, x: 22, y: 14}
+  - {name: tree4, x: 24, y: 2}
+  - {name: tree2, x: 24, y: 22}
+  - {name: tree1, x: 25, y: 28}
+  - {name: tree1, x: 33, y: 6}
+  - {name: tree3, x: 36, y: 1}
+  - {name: tree4, x: 37, y: 27}
+  - {name: tree2, x: 38, y: 14}
+  - {name: tree4, x: 44, y: 19}
+  - {name: tree3, x: 46, y: 8}
+  - {name: tree4, x: 48, y: 1}
+  - {name: tree3, x: 55, y: 16}
+  - {name: tree4, x: 56, y: 5}
+  - {name: tree1, x: 56, y: 23}
+  - {name: tree2, x: 63, y: 11}
+  name: forest0
+- features:
+  - {name: tree2, x: 5, y: 44}
+  - {name: tree3, x: 10, y: 49}
+  - &id001 {name: tree3, x: 10, y: 55}
+  - {name: tree1, x: 20, y: 34}
+  - {name: tree1, x: 20, y: 44}
+  - {name: tree2, x: 22, y: 39}
+  - {name: tree3, x: 25, y: 51}
+  - {name: tree2, x: 27, y: 57}
+  - {name: tree4, x: 33, y: 32}
+  - {name: tree3, x: 36, y: 45}
+  - {name: tree2, x: 38, y: 51}
+  - {name: tree2, x: 39, y: 37}
+  - {name: tree2, x: 48, y: 41}
+  - {name: tree3, x: 50, y: 56}
+  - {name: tree3, x: 52, y: 49}
+  - {name: tree4, x: 53, y: 32}
+  - &id002 {name: tree1, x: 61, y: 36}
+  - {name: tree4, x: 61, y: 43}
+  - {name: tree4, x: 64, y: 48}
+  name: forest2
+- features:
+  - {name: tree3, x: 1, y: 11}
+  - {name: tree4, x: 5, y: 6}
+  - {name: tree2, x: 7, y: 1}
+  - *id001
+  - {name: tree1, x: 61, y: 55}
+  - {name: tree3, x: 67, y: 0}
+  - {name: tree1, x: 70, y: 7}
+  - {name: tree3, x: 74, y: 12}
+  - {name: tree3, x: 74, y: 56}
+  - {name: tree2, x: 77, y: 51}
+  - {name: tree2, x: 78, y: 2}
+  - {name: tree2, x: 78, y: 45}
+  - {name: tree2, x: 84, y: 14}
+  - {name: tree1, x: 85, y: 56}
+  - {name: tree4, x: 86, y: 6}
+  - {name: tree4, x: 87, y: 50}
+  - {name: tree1, x: 88, y: 1}
+  - {name: tree4, x: 96, y: 10}
+  - {name: tree4, x: 97, y: 58}
+  - {name: tree1, x: 99, y: 3}
+  - {name: tree3, x: 99, y: 49}
+  - {name: tree1, x: 107, y: 56}
+  name: forest1
+- features:
+  - {name: tree2, x: 2, y: 32}
+  - {name: tree4, x: 6, y: 37}
+  - {name: tree4, x: 8, y: 25}
+  - {name: tree1, x: 12, y: 30}
+  - *id002
+  - {name: tree1, x: 63, y: 31}
+  - {name: tree3, x: 66, y: 22}
+  - {name: tree1, x: 70, y: 17}
+  - {name: tree2, x: 72, y: 39}
+  - {name: tree2, x: 73, y: 26}
+  - {name: tree4, x: 73, y: 33}
+  - {name: tree1, x: 82, y: 37}
+  - {name: tree2, x: 83, y: 22}
+  - {name: tree3, x: 87, y: 27}
+  - {name: tree2, x: 89, y: 41}
+  - {name: tree3, x: 93, y: 17}
+  - {name: tree1, x: 95, y: 22}
+  - {name: tree3, x: 95, y: 35}
+  - {name: tree3, x: 100, y: 28}
+  - {name: tree4, x: 100, y: 43}
+  - {name: tree1, x: 103, y: 18}
+  - {name: tree1, x: 104, y: 38}
+  - {name: tree2, x: 105, y: 23}
+  name: forest3
