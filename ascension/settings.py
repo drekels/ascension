@@ -43,7 +43,7 @@ game_settings = SettingSet([
     },
     {
         "name": "img_dir",
-        "default": "data/img/x2",
+        "default": "data/img/x3",
     },
     {
         "name": "atlas_image",
@@ -55,12 +55,12 @@ game_settings = SettingSet([
     },
     {
         "name": "window_width",
-        "default": 1000,
+        "default": 1500,
         "parse": int,
     },
     {
         "name": "window_height",
-        "default": 600,
+        "default": 800,
         "parse": int,
     },
     {
@@ -69,7 +69,7 @@ game_settings = SettingSet([
     },
     {
         "name": "sprite_scale",
-        "default": 2,
+        "default": 3,
         "parse": int,
     },
     {

@@ -195,6 +195,8 @@ class SeaGenerator(object):
         for x in range(conf.tile_width):
             for y in range(conf.tile_height):
                 if is_in_hex(x, y):
+                    if topleft_x == topleft_y and x == 20 and y == 20:
+                        print topleft_x, topleft_y, x, y
                     frame_x = (x + topleft_x) % conf.frame_width
                     frame_y = (y + topleft_y) % conf.frame_height
                     color = frame_pixels[frame_x, frame_y]

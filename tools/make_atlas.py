@@ -12,6 +12,7 @@ class AscensionAtlas(Atlas):
 
     def __init__(self, *args, **kwargs):
         self.animations = {}
+        self.feature_maps = {}
         super(AscensionAtlas, self).__init__(*args, **kwargs)
 
     def add_animation(self, animation):
@@ -20,6 +21,14 @@ class AscensionAtlas(Atlas):
                 "Animation named '{}' added a second time to atlas".format(animation.name)
             )
         self.animations[animation.name] = animation
+
+    def add_feature_map(self, feature_map):
+        name = feature_map["name"]
+        if name in self.feature_maps:
+            raise KeyError(
+                "Feature map named '{}' added a second time to atlas".format(name)
+            )
+        self.feature_maps[name] = feature_map
 
     def get_meta(self):
         for animation in self.animations.values():
@@ -36,7 +45,8 @@ class AscensionAtlas(Atlas):
             animation_meta.append(animation.__getstate__())
         return {
             "components": components_meta,
-            "animations": animation_meta
+            "animations": animation_meta,
+            "feature_maps": self.feature_maps,
         }
 
 
@@ -52,6 +62,7 @@ class AtlasGenerator(object):
     data_dir = "data"
     img_dir = os.path.join(data_dir, "img")
     x2_dir = os.path.join(img_dir, "x2")
+    x3_dir = os.path.join(img_dir, "x3")
 
     @classmethod
     def make_atlas(cls, base_directory):
@@ -62,6 +73,7 @@ class AtlasGenerator(object):
             shutil.rmtree(cls.img_dir)
         os.mkdir(cls.img_dir)
         os.mkdir(cls.x2_dir)
+        os.mkdir(cls.x3_dir)
         inst.save_all_images()
         inst.save_atlas()
 
@@ -72,6 +84,7 @@ class AtlasGenerator(object):
         self.components = {}
         self.extra_component_meta = {}
         self.animations = []
+        self.feature_maps = []
         self.load_image_dir(self.base_directory)
         self.update_extra_component_meta()
 
@@ -97,16 +110,21 @@ class AtlasGenerator(object):
             self.atlas.add_component(component)
         for animation in self.animations:
             self.atlas.add_animation(animation)
+        for feature_map in self.feature_maps:
+            self.atlas.add_feature_map(feature_map)
 
     def save_all_images(self):
         for component_name, component in self.atlas.components.items():
             filename = "{}.png".format(component_name)
             filepath = os.path.join(self.img_dir, filename)
             x2_filepath = os.path.join(self.x2_dir, filename)
+            x3_filepath = os.path.join(self.x3_dir, filename)
             component.image.save(filepath, format="PNG")
             width, height = component.image.width, component.image.height
             x2_image = component.image.resize((width*2, height*2))
             x2_image.save(x2_filepath, format="PNG")
+            x3_image = component.image.resize((width*3, height*3))
+            x3_image.save(x3_filepath, format="PNG")
 
 
     def save_atlas(self):
@@ -151,6 +169,10 @@ class AtlasGenerator(object):
             animation_data["name"] = ".".join(tokens + [animation_data["name"]])
             animation = AscAnimation.load(animation_data)
             self.animations.append(animation)
+        feature_maps = data.get("feature_maps", [])
+        for feature_map in feature_maps:
+            feature_map["name"] = ".".join(tokens + [feature_map["name"]])
+            self.feature_maps.append(feature_map)
 
     def load_image_default(self, image_path, tokens):
         filename = os.path.basename(image_path)

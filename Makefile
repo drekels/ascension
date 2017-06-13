@@ -44,12 +44,22 @@ dist: setup.py $(PYTHON_FILES) requirements.txt README MANIFEST.in MAKEFILE
 data:
 	mkdir data
 
+
 MAKE_FOREST_COMMAND = make_forest
 MAKE_FOREST_SCRIPT = $(TOOL_DIR)/make_forest.py
 
 .PHONY: forest
 forest: $(MAKE_FOREST_SCRIPT)
 	$(TEST_ENV_PYTHON) $(MANAGE_SCRIPT) $(MAKE_FOREST_COMMAND) $(TERRAIN_IMAGE_DIR)
+
+
+MAKE_MOUNTAIN_COMMAND = make_mountain
+MAKE_MOUNTAIN_SCRIPT = $(TOOL_DIR)/make_mountain.py
+
+.PHONY: mountain
+mountain: $(MAKE_MOUNTAIN_SCRIPT)
+	$(TEST_ENV_PYTHON) $(MANAGE_SCRIPT) $(MAKE_MOUNTAIN_COMMAND) $(TERRAIN_IMAGE_DIR)
+
 
 MAKE_SEA_COMMAND = make_sea
 MAKE_SEA_SCRIPT = $(TOOL_DIR)/make_sea.py

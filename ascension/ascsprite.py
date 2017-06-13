@@ -244,7 +244,7 @@ class RemoveEngineCallback(object):
 
 class Sprite(object):
 
-    def __init__(self, x=0, y=0, z_group=0, component_name=None, anchor="center"):
+    def __init__(self, x=0, y=0, z_group=0, component_name=None, anchor="center", parent=None):
         self.pyglet_sprite = None
         self.x = floor(x)
         self.y = floor(y)
@@ -257,6 +257,10 @@ class Sprite(object):
         self.displacement_x = 0
         self.displacement_y = 0
         self.anchor = anchor
+        self.parent = parent
+        if parent:
+            parent.add_subsprite(self)
+        self.subsprites = []
         if component_name:
             self.set_component(component_name, anchor=anchor)
 
@@ -314,20 +318,29 @@ class Sprite(object):
         self.displacement_y = displacement_y
         self.xy_updated = True
 
+    def add_subsprite(self, subsprite):
+        self.subsprites.append(subsprite)
+
     def determine_pyglet_xy(self):
+        x, y = self.x, self.y
+        if self.parent:
+            x += self.parent.x
+            y += self.parent.y
+
         draw_x = (
-            (self.x + self.displacement_x - self.anchor_x) * conf.sprite_scale
+            (x + self.displacement_x - self.anchor_x) * conf.sprite_scale
         )
         draw_y = (
-            (self.y + self.displacement_y - self.component_height + self.anchor_y)
+            (y + self.displacement_y - self.component_height + self.anchor_y)
             * conf.sprite_scale
         )
         if draw_x != self.pyglet_sprite.x or draw_y != self.pyglet_sprite.y:
-            draw_z = self.z_group + 0.001 * self.y + 0.00001 * self.x
+            draw_z = self.z_group + 0.001 * y + 0.00001 * x
             self.pyglet_sprite.x = draw_x
             self.pyglet_sprite.y = draw_y
             self.pyglet_sprite.order = draw_z
-
+        for subsprite in self.subsprites:
+            subsprite.determine_pyglet_xy()
 
     def get_component_center(self):
         return self.component_width / 2, self.component_height

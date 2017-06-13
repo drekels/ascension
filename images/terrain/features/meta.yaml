@@ -2,4 +2,12 @@ components:
   - name: mountain_1
     stand_x: 6
     stand_y: 6
-    exclusion_radius: 7
+  - name: c_tree_1
+    stand_x: 4
+    stand_y: 8
+  - name: d_tree_1
+    stand_x: 4
+    stand_y: 8
+  - name: dead_tree_1
+    stand_x: 5
+    stand_y: 7

@@ -1,91 +1,684 @@
 feature_maps:
 - features:
-  - {name: tree4, x: 7, y: 18}
-  - {name: tree1, x: 12, y: 12}
-  - {name: tree3, x: 22, y: 7}
-  - {name: tree4, x: 22, y: 14}
-  - {name: tree4, x: 24, y: 2}
-  - {name: tree2, x: 24, y: 22}
-  - {name: tree1, x: 25, y: 28}
-  - {name: tree1, x: 33, y: 6}
-  - {name: tree3, x: 36, y: 1}
-  - {name: tree4, x: 37, y: 27}
-  - {name: tree2, x: 38, y: 14}
-  - {name: tree4, x: 44, y: 19}
-  - {name: tree3, x: 46, y: 8}
-  - {name: tree4, x: 48, y: 1}
-  - {name: tree3, x: 55, y: 16}
-  - {name: tree4, x: 56, y: 5}
-  - {name: tree1, x: 56, y: 23}
-  - {name: tree2, x: 63, y: 11}
-  name: forest0
+  - edges: [NW, SW]
+    name: tree3
+    x: -32
+    y: 2
+  - edges: [NW]
+    name: tree2
+    x: -27
+    y: 5
+  - edges: [SW]
+    name: tree1
+    x: -26
+    y: -5
+  - edges: []
+    name: tree3
+    x: -24
+    y: -1
+  - edges: [SW, S]
+    name: tree3
+    x: -20
+    y: -12
+  - edges: []
+    name: tree1
+    x: -19
+    y: 8
+  - edges: []
+    name: tree2
+    x: -19
+    y: 4
+  - edges: []
+    name: tree4
+    x: -19
+    y: -8
+  - edges: []
+    name: tree2
+    x: -18
+    y: -4
+  - edges: [NW, N]
+    name: tree2
+    x: -17
+    y: 14
+  - edges: []
+    name: tree4
+    x: -11
+    y: -1
+  - edges: [N]
+    name: tree4
+    x: -9
+    y: 14
+  - edges: []
+    name: tree4
+    x: -9
+    y: 10
+  - edges: []
+    name: tree1
+    x: -9
+    y: 4
+  - edges: [S]
+    name: tree3
+    x: -8
+    y: -12
+  - edges: []
+    name: tree4
+    x: -5
+    y: -6
+  - edges: []
+    name: tree1
+    x: -4
+    y: -2
+  - edges: []
+    name: tree2
+    x: -3
+    y: 6
+  - edges: [N]
+    name: tree1
+    x: -2
+    y: 15
+  - edges: []
+    name: tree1
+    x: -1
+    y: 10
+  - edges: []
+    name: tree3
+    x: -1
+    y: 2
+  - edges: []
+    name: tree3
+    x: 0
+    y: -9
+  - edges: []
+    name: tree4
+    x: 3
+    y: -1
+  - edges: []
+    name: tree1
+    x: 3
+    y: -5
+  - edges: [N]
+    name: tree4
+    x: 5
+    y: 12
+  - edges: []
+    name: tree2
+    x: 7
+    y: 8
+  - edges: []
+    name: tree4
+    x: 7
+    y: 4
+  - edges: []
+    name: tree1
+    x: 10
+    y: 0
+  - edges: []
+    name: tree3
+    x: 11
+    y: -5
+  - edges: []
+    name: tree1
+    x: 13
+    y: 11
+  - edges: []
+    name: tree1
+    x: 13
+    y: -11
+  - edges: []
+    name: tree3
+    x: 17
+    y: 4
+  - edges: []
+    name: tree2
+    x: 18
+    y: 8
+  - edges: []
+    name: tree3
+    x: 18
+    y: -3
+  - edges: []
+    name: tree3
+    x: 18
+    y: -7
+  - edges: [N, NE]
+    name: tree3
+    x: 19
+    y: 14
+  - edges: [S, SE]
+    name: tree3
+    x: 20
+    y: -14
+  - edges: []
+    name: tree3
+    x: 24
+    y: 1
+  - edges: [NE]
+    name: tree4
+    x: 25
+    y: 11
+  - edges: [NE]
+    name: tree1
+    x: 28
+    y: 7
+  name: forest_0
+  terrain_feature_pairing: &id001
+  - pairings: {tree1: terrain.features.c_tree_1, tree2: terrain.features.d_tree_1,
+      tree3: terrain.features.dead_tree_1, tree4: terrain.features.c_tree_1}
+    terrain: forest
 - features:
-  - {name: tree2, x: 5, y: 44}
-  - {name: tree3, x: 10, y: 49}
-  - &id001 {name: tree3, x: 10, y: 55}
-  - {name: tree1, x: 20, y: 34}
-  - {name: tree1, x: 20, y: 44}
-  - {name: tree2, x: 22, y: 39}
-  - {name: tree3, x: 25, y: 51}
-  - {name: tree2, x: 27, y: 57}
-  - {name: tree4, x: 33, y: 32}
-  - {name: tree3, x: 36, y: 45}
-  - {name: tree2, x: 38, y: 51}
-  - {name: tree2, x: 39, y: 37}
-  - {name: tree2, x: 48, y: 41}
-  - {name: tree3, x: 50, y: 56}
-  - {name: tree3, x: 52, y: 49}
-  - {name: tree4, x: 53, y: 32}
-  - &id002 {name: tree1, x: 61, y: 36}
-  - {name: tree4, x: 61, y: 43}
-  - {name: tree4, x: 64, y: 48}
-  name: forest2
+  - edges: [SW]
+    name: tree4
+    x: -30
+    y: -4
+  - edges: [NW, SW]
+    name: tree2
+    x: -29
+    y: 1
+  - edges: [NW]
+    name: tree3
+    x: -24
+    y: 4
+  - edges: [SW]
+    name: tree3
+    x: -24
+    y: -7
+  - edges: []
+    name: tree4
+    x: -22
+    y: 0
+  - edges: [SW, S]
+    name: tree1
+    x: -22
+    y: -13
+  - edges: []
+    name: tree1
+    x: -20
+    y: 7
+  - edges: [NW]
+    name: tree3
+    x: -18
+    y: 11
+  - edges: []
+    name: tree1
+    x: -18
+    y: -4
+  - edges: []
+    name: tree4
+    x: -16
+    y: -11
+  - edges: [NW, N]
+    name: tree1
+    x: -14
+    y: 14
+  - edges: []
+    name: tree3
+    x: -12
+    y: 0
+  - edges: []
+    name: tree1
+    x: -11
+    y: 10
+  - edges: []
+    name: tree2
+    x: -11
+    y: 4
+  - edges: []
+    name: tree2
+    x: -10
+    y: -4
+  - edges: [N]
+    name: tree2
+    x: -7
+    y: 13
+  - edges: []
+    name: tree2
+    x: -5
+    y: 7
+  - edges: []
+    name: tree3
+    x: -4
+    y: 3
+  - edges: []
+    name: tree3
+    x: -4
+    y: -8
+  - edges: []
+    name: tree2
+    x: -2
+    y: -1
+  - edges: []
+    name: tree3
+    x: 0
+    y: 10
+  - edges: []
+    name: tree1
+    x: 0
+    y: -5
+  - edges: []
+    name: tree4
+    x: 3
+    y: -9
+  - edges: [N]
+    name: tree3
+    x: 4
+    y: 14
+  - edges: []
+    name: tree2
+    x: 6
+    y: -1
+  - edges: []
+    name: tree3
+    x: 7
+    y: 3
+  - edges: []
+    name: tree1
+    x: 8
+    y: 7
+  - edges: [S]
+    name: tree3
+    x: 9
+    y: -14
+  - edges: []
+    name: tree1
+    x: 10
+    y: 11
+  - edges: []
+    name: tree3
+    x: 10
+    y: -6
+  - edges: [N]
+    name: tree4
+    x: 11
+    y: 15
+  - edges: []
+    name: tree2
+    x: 13
+    y: -2
+  - edges: []
+    name: tree2
+    x: 14
+    y: -11
+  - edges: []
+    name: tree2
+    x: 17
+    y: 1
+  - edges: []
+    name: tree1
+    x: 17
+    y: -5
+  - edges: [NE]
+    name: tree4
+    x: 19
+    y: 11
+  - edges: []
+    name: tree4
+    x: 19
+    y: 7
+  - edges: [SE]
+    name: tree3
+    x: 22
+    y: -11
+  - edges: [SE]
+    name: tree4
+    x: 24
+    y: -7
+  - edges: [NE]
+    name: tree4
+    x: 25
+    y: 9
+  - edges: []
+    name: tree4
+    x: 26
+    y: 2
+  - edges: [SE]
+    name: tree4
+    x: 26
+    y: -2
+  - edges: [NE, SE]
+    name: tree2
+    x: 33
+    y: -1
+  name: forest_2
+  terrain_feature_pairing: *id001
 - features:
-  - {name: tree3, x: 1, y: 11}
-  - {name: tree4, x: 5, y: 6}
-  - {name: tree2, x: 7, y: 1}
-  - *id001
-  - {name: tree1, x: 61, y: 55}
-  - {name: tree3, x: 67, y: 0}
-  - {name: tree1, x: 70, y: 7}
-  - {name: tree3, x: 74, y: 12}
-  - {name: tree3, x: 74, y: 56}
-  - {name: tree2, x: 77, y: 51}
-  - {name: tree2, x: 78, y: 2}
-  - {name: tree2, x: 78, y: 45}
-  - {name: tree2, x: 84, y: 14}
-  - {name: tree1, x: 85, y: 56}
-  - {name: tree4, x: 86, y: 6}
-  - {name: tree4, x: 87, y: 50}
-  - {name: tree1, x: 88, y: 1}
-  - {name: tree4, x: 96, y: 10}
-  - {name: tree4, x: 97, y: 58}
-  - {name: tree1, x: 99, y: 3}
-  - {name: tree3, x: 99, y: 49}
-  - {name: tree1, x: 107, y: 56}
-  name: forest1
+  - edges: [SE]
+    name: tree3
+    x: 19
+    y: -9
+  - edges: []
+    name: tree1
+    x: 22
+    y: -1
+  - edges: [NE]
+    name: tree4
+    x: 24
+    y: 11
+  - edges: []
+    name: tree4
+    x: 24
+    y: 3
+  - edges: [SE]
+    name: tree2
+    x: 29
+    y: -4
+  - edges: [NE, SE]
+    name: tree1
+    x: 32
+    y: 2
+  - edges: [SW]
+    name: tree4
+    x: -29
+    y: -4
+  - edges: [SW]
+    name: tree1
+    x: -26
+    y: -8
+  - edges: [NW]
+    name: tree4
+    x: -25
+    y: 3
+  - edges: [NW]
+    name: tree2
+    x: -24
+    y: 10
+  - edges: []
+    name: tree1
+    x: -22
+    y: -1
+  - edges: [NW, N]
+    name: tree2
+    x: -21
+    y: 14
+  - edges: [SW, S]
+    name: tree4
+    x: -19
+    y: -13
+  - edges: []
+    name: tree2
+    x: -18
+    y: -4
+  - edges: []
+    name: tree1
+    x: -17
+    y: -8
+  - edges: []
+    name: tree2
+    x: -17
+    y: 5
+  - edges: []
+    name: tree1
+    x: -13
+    y: 2
+  - edges: [S]
+    name: tree3
+    x: -12
+    y: -14
+  - edges: []
+    name: tree2
+    x: -12
+    y: 8
+  - edges: [N]
+    name: tree2
+    x: -11
+    y: 12
+  - edges: []
+    name: tree4
+    x: -10
+    y: -6
+  - edges: []
+    name: tree1
+    x: -8
+    y: -10
+  - edges: []
+    name: tree1
+    x: -7
+    y: 5
+  - edges: []
+    name: tree4
+    x: -5
+    y: 0
+  - edges: []
+    name: tree2
+    x: -5
+    y: 9
+  - edges: [N]
+    name: tree3
+    x: -3
+    y: 14
+  - edges: []
+    name: tree4
+    x: -2
+    y: -4
+  - edges: [S]
+    name: tree4
+    x: -1
+    y: -13
+  - edges: []
+    name: tree4
+    x: 0
+    y: -8
+  - edges: []
+    name: tree3
+    x: 1
+    y: 4
+  - edges: [N]
+    name: tree2
+    x: 3
+    y: 12
+  - edges: []
+    name: tree4
+    x: 5
+    y: 8
+  - edges: []
+    name: tree1
+    x: 6
+    y: -6
+  - edges: [S]
+    name: tree2
+    x: 7
+    y: -13
+  - edges: []
+    name: tree4
+    x: 8
+    y: 2
+  - edges: []
+    name: tree1
+    x: 9
+    y: -2
+  - edges: []
+    name: tree2
+    x: 12
+    y: -8
+  - edges: [N]
+    name: tree3
+    x: 13
+    y: 14
+  - edges: []
+    name: tree1
+    x: 13
+    y: 10
+  - edges: [S, SE]
+    name: tree1
+    x: 15
+    y: -12
+  - edges: []
+    name: tree4
+    x: 15
+    y: 1
+  - edges: []
+    name: tree3
+    x: 16
+    y: -4
+  - edges: []
+    name: tree1
+    x: 17
+    y: 7
+  name: forest_1
+  terrain_feature_pairing: *id001
 - features:
-  - {name: tree2, x: 2, y: 32}
-  - {name: tree4, x: 6, y: 37}
-  - {name: tree4, x: 8, y: 25}
-  - {name: tree1, x: 12, y: 30}
-  - *id002
-  - {name: tree1, x: 63, y: 31}
-  - {name: tree3, x: 66, y: 22}
-  - {name: tree1, x: 70, y: 17}
-  - {name: tree2, x: 72, y: 39}
-  - {name: tree2, x: 73, y: 26}
-  - {name: tree4, x: 73, y: 33}
-  - {name: tree1, x: 82, y: 37}
-  - {name: tree2, x: 83, y: 22}
-  - {name: tree3, x: 87, y: 27}
-  - {name: tree2, x: 89, y: 41}
-  - {name: tree3, x: 93, y: 17}
-  - {name: tree1, x: 95, y: 22}
-  - {name: tree3, x: 95, y: 35}
-  - {name: tree3, x: 100, y: 28}
-  - {name: tree4, x: 100, y: 43}
-  - {name: tree1, x: 103, y: 18}
-  - {name: tree1, x: 104, y: 38}
-  - {name: tree2, x: 105, y: 23}
-  name: forest3
+  - edges: []
+    name: tree4
+    x: 19
+    y: 1
+  - edges: [SE]
+    name: tree4
+    x: 19
+    y: -10
+  - edges: [N, NE]
+    name: tree3
+    x: 21
+    y: 12
+  - edges: [NE]
+    name: tree2
+    x: 23
+    y: 7
+  - edges: [SE]
+    name: tree2
+    x: 25
+    y: -2
+  - edges: [SE]
+    name: tree1
+    x: 26
+    y: -6
+  - edges: [NE]
+    name: tree2
+    x: 27
+    y: 4
+  - edges: [NE, SE]
+    name: tree1
+    x: 32
+    y: -1
+  - edges: [NW, SW]
+    name: tree3
+    x: -34
+    y: 1
+  - edges: [SW]
+    name: tree4
+    x: -29
+    y: -6
+  - edges: [NW]
+    name: tree1
+    x: -28
+    y: 3
+  - edges: [SW]
+    name: tree2
+    x: -28
+    y: -2
+  - edges: [NW]
+    name: tree3
+    x: -27
+    y: 7
+  - edges: [SW]
+    name: tree2
+    x: -23
+    y: -9
+  - edges: []
+    name: tree2
+    x: -22
+    y: -4
+  - edges: [NW]
+    name: tree3
+    x: -21
+    y: 11
+  - edges: []
+    name: tree1
+    x: -20
+    y: 6
+  - edges: []
+    name: tree3
+    x: -20
+    y: 2
+  - edges: []
+    name: tree4
+    x: -16
+    y: -8
+  - edges: []
+    name: tree4
+    x: -13
+    y: 4
+  - edges: []
+    name: tree2
+    x: -13
+    y: -1
+  - edges: [S]
+    name: tree4
+    x: -13
+    y: -14
+  - edges: [N]
+    name: tree4
+    x: -10
+    y: 12
+  - edges: []
+    name: tree1
+    x: -9
+    y: 7
+  - edges: []
+    name: tree1
+    x: -9
+    y: -7
+  - edges: []
+    name: tree3
+    x: -6
+    y: 3
+  - edges: []
+    name: tree4
+    x: -4
+    y: -4
+  - edges: []
+    name: tree3
+    x: -3
+    y: -10
+  - edges: []
+    name: tree2
+    x: -1
+    y: 10
+  - edges: []
+    name: tree2
+    x: 0
+    y: 5
+  - edges: []
+    name: tree2
+    x: 0
+    y: -1
+  - edges: []
+    name: tree1
+    x: 3
+    y: -8
+  - edges: [S]
+    name: tree3
+    x: 4
+    y: -13
+  - edges: []
+    name: tree2
+    x: 7
+    y: -2
+  - edges: [N]
+    name: tree1
+    x: 9
+    y: 13
+  - edges: []
+    name: tree2
+    x: 9
+    y: -6
+  - edges: []
+    name: tree3
+    x: 11
+    y: 2
+  - edges: [S]
+    name: tree4
+    x: 11
+    y: -12
+  - edges: []
+    name: tree4
+    x: 13
+    y: 6
+  - edges: []
+    name: tree1
+    x: 15
+    y: 10
+  - edges: []
+    name: tree3
+    x: 15
+    y: -4
+  name: forest_3
+  terrain_feature_pairing: *id001

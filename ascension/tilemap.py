@@ -4,6 +4,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from Queue import PriorityQueue
+import yaml
 
 from ascension.ascsprite import TILE_GROUP, UNIT_GROUP, Sprite, TextSprite
 from ascension.util import Singleton
@@ -22,6 +23,14 @@ BUNCH_TRANSLATIONS = {
     5: (0, -1),
     6: (1, 0),
 }
+DIRECTIONS = {
+    'N': (0, 1),
+    'S': (0, -1),
+    'NW': (-1, 1),
+    'SW': (-1, 0),
+    'NE': (1, 0),
+    'SE': (1, -1),
+}
 
 
 def get_tile_bunch_center(x, y):
@@ -39,6 +48,16 @@ class TileMap(object):
     def __init__(self):
         self.moverules = SimpleHexMoveRules()
         self.reset_tiles()
+        self.load_feature_maps()
+
+    def load_feature_maps(self):
+        self.feature_maps = {}
+        with open(conf.atlas_meta) as f:
+            atlas_data = yaml.load(f)
+        for name, feature_map_data in atlas_data['feature_maps'].items():
+            feature_map = FeatureMap()
+            feature_map.__setstate__(feature_map_data)
+            self.feature_maps[name] = feature_map
 
     def reset_tiles(self):
         self.tile_map = {}
@@ -49,7 +68,6 @@ class TileMap(object):
         self.generate_square()
         self.determine_outer_limits()
         self.assign_terrain()
-
 
     def generate_square(self, width=14):
         self.width, self.height = width, width
@@ -74,8 +92,25 @@ class TileMap(object):
             self.max_y_pos = tile.y_pos > self.max_y_pos and tile.y_pos or self.max_y_pos
             self.min_y_pos = tile.y_pos < self.min_y_pos and tile.y_pos or self.min_y_pos
 
-
     def assign_terrain(self):
+        self.assign_sea()
+        self.assign_forests()
+        self.assign_mountains()
+
+    def assign_forests(self):
+        for tile in [(1, 1), (0, 2), (0, 1), (1, 0)]:
+            forest_tile = self.gettile(*tile)
+            forest_tile.terrain = 'forest'
+
+    def assign_mountains(self):
+        for tile in [(-2, 2), (-3, 2), (-3, 3), (-2, 3)]:
+            mountain_tile = self.gettile(*tile)
+            mountain_tile.terrain = 'mountain'
+
+    def get_feature_map(self, name):
+        return self.feature_maps[name]
+
+    def assign_sea(self):
         top_edge = self.max_y_pos
         bottom_edge = self.min_y_pos - self.tile_height/2
         frame_height = top_edge - bottom_edge
@@ -103,7 +138,6 @@ class TileMap(object):
             bunch = get_tile_bunch_center(tile.x, tile.y)
             bunch = self.get_wrapped_coor(*bunch)
             tile.terrain = bunch and bunch_terrains[bunch] or 'sea'
-
 
     def addtile(self, tile):
         if tile.x not in self.tile_map:
@@ -191,7 +225,7 @@ class TileMap(object):
 
 class Tile(object):
 
-    def __init__(self, x, y, x_pos, y_pos, terrain):
+    def __init__(self, x, y, x_pos, y_pos, terrain, feature_map=None):
         self.terrain = terrain
         self.x, self.y = x, y
         self.x_pos = x_pos
@@ -199,8 +233,7 @@ class Tile(object):
         self.imgnum = (self.x % 2) * 2 + (self.y - self.x / 2) % 2
         self.sprite = None
         self.coor_sprite = None
-        self.feature_sprites = None
-        self.feature_map = FeatureMap()
+        self.feature_map = None
 
     def get_sprite(self):
         if not self.sprite:
@@ -213,7 +246,7 @@ class Tile(object):
         return self.coor_sprite
 
     def get_feature_sprites(self):
-        if not self.feature_sprites:
+        if not hasattr(self, 'feature_sprites'):
             self.make_feature_sprites()
         return self.feature_sprites
 
@@ -221,6 +254,10 @@ class Tile(object):
         component_name = "terrain.grassland"
         if self.terrain == 'sea':
             component_name = "terrain.sea.sea_{:0>2}_00".format(self.imgnum)
+        if self.terrain == 'forest':
+            self.feature_map = TileMap.get_feature_map('terrain.forest_{}'.format(self.imgnum))
+        if self.terrain == 'mountain':
+            self.feature_map = TileMap.get_feature_map('terrain.mountain_{}'.format(self.imgnum))
         self.sprite = Sprite(
             x=self.x_pos, y=self.y_pos,
             component_name=component_name,
@@ -242,11 +279,28 @@ class Tile(object):
 
     def make_feature_sprites(self):
         self.feature_sprites = []
-        for feature_name, x, y in self.feature_map.features:
-            self.make_feature_sprite(feature_name, x, y)
+        if not self.feature_map:
+            return
+        for feature_info in self.feature_map.features:
+            placeholder = feature_info['name']
+            feature_name = self.feature_map.get_feature(self.terrain, placeholder)
+            x, y = feature_info['x'], feature_info['y']
+            edges = feature_info['edges']
+            if all([self.is_similar_terrain(edge) for edge in edges]):
+                self.make_feature_sprite(feature_name, x, y)
+
+    def is_similar_terrain(self, direction):
+        d = DIRECTIONS[direction]
+        other_x = self.x + d[0]
+        other_y = self.y + d[1]
+        other = TileMap.gettile(other_x, other_y)
+        return other.terrain == self.terrain
 
     def make_feature_sprite(self, feature_name, x, y):
-        sprite = Sprite(component_name=feature_name, x=x, y=y, z_group=UNIT_GROUP, anchor="stand")
+        sprite = Sprite(
+            component_name=feature_name, x=x, y=y, z_group=UNIT_GROUP, anchor="stand",
+            parent=self.sprite
+        )
         self.feature_sprites.append(sprite)
 
     def __repr__(self):
@@ -261,20 +315,22 @@ class Tile(object):
 
 class FeatureMap(object):
 
-    def __init__(self, feature_counts=None):
-        self.feature_counts = feature_counts or {"mountain": 5}
+    def __init__(self):
         self.features = []
-        self.place_features()
 
+    def __setstate__(self, state):
+        self.name = state['name']
+        self.features = []
+        for feature in state['features']:
+            self.features.append(feature)
+        self.terrain_feature_pairings = {}
+        for pairing in state['terrain_feature_pairing']:
+            terrain = pairing['terrain']
+            pairings = pairing['pairings']
+            self.terrain_feature_pairings[terrain] = pairings
 
-    def place_features(self):
-        return
-        self.features.append(("terrain.features.mountain_1", 0, 0))
-        self.features.append(("terrain.features.mountain_1", 8, 0))
-        self.features.append(("terrain.features.mountain_1", -8, 0))
-        self.features.append(("terrain.features.mountain_1", 4, -5))
-        self.features.append(("terrain.features.mountain_1", -4, -5))
-        self.features.append(("terrain.features.mountain_1", 4, 5))
+    def get_feature(self, terrain, feature_placeholder):
+        return self.terrain_feature_pairings[terrain][feature_placeholder]
 
 
 class SimpleHexMoveRules(object):
