@@ -92,10 +92,14 @@ class TileMap(object):
             self.max_y_pos = tile.y_pos > self.max_y_pos and tile.y_pos or self.max_y_pos
             self.min_y_pos = tile.y_pos < self.min_y_pos and tile.y_pos or self.min_y_pos
 
+    def get_feature_map(self, name):
+        return self.feature_maps[name]
+
     def assign_terrain(self):
         self.assign_sea()
         self.assign_forests()
         self.assign_mountains()
+        self.assign_village()
 
     def assign_forests(self):
         for tile in [(1, 1), (0, 2), (0, 1), (1, 0)]:
@@ -106,9 +110,6 @@ class TileMap(object):
         for tile in [(-2, 2), (-3, 2), (-3, 3), (-2, 3)]:
             mountain_tile = self.gettile(*tile)
             mountain_tile.terrain = 'mountain'
-
-    def get_feature_map(self, name):
-        return self.feature_maps[name]
 
     def assign_sea(self):
         top_edge = self.max_y_pos
@@ -138,6 +139,10 @@ class TileMap(object):
             bunch = get_tile_bunch_center(tile.x, tile.y)
             bunch = self.get_wrapped_coor(*bunch)
             tile.terrain = bunch and bunch_terrains[bunch] or 'sea'
+
+    def assign_village(self):
+        for tile in [(-2, 5)]:
+            self.gettile(*tile).locale = "village"
 
     def addtile(self, tile):
         if tile.x not in self.tile_map:
@@ -234,6 +239,7 @@ class Tile(object):
         self.sprite = None
         self.coor_sprite = None
         self.feature_map = None
+        self.locale = None
 
     def get_sprite(self):
         if not self.sprite:
@@ -258,11 +264,15 @@ class Tile(object):
             self.feature_map = TileMap.get_feature_map('terrain.forest_{}'.format(self.imgnum))
         if self.terrain == 'mountain':
             self.feature_map = TileMap.get_feature_map('terrain.mountain_{}'.format(self.imgnum))
+
         self.sprite = Sprite(
             x=self.x_pos, y=self.y_pos,
             component_name=component_name,
             z_group=TILE_GROUP,
         )
+        if self.locale == 'village':
+            self.make_locale_sprite()
+
         if self.terrain == 'sea':
             self.start_tile_animation()
 
@@ -295,6 +305,16 @@ class Tile(object):
         other_y = self.y + d[1]
         other = TileMap.gettile(other_x, other_y)
         return other.terrain == self.terrain
+
+    def make_locale_sprite(self):
+        component_name = "locale.{}".format(self.locale)
+        sprite = Sprite(
+            component_name=component_name, x=0, y=0, z_group=UNIT_GROUP, anchor="tile",
+            parent=self.sprite,
+        )
+        self.locale_sprite = sprite
+
+
 
     def make_feature_sprite(self, feature_name, x, y):
         sprite = Sprite(

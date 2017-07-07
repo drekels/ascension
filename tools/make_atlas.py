@@ -58,6 +58,7 @@ class AtlasGenerator(object):
     load_map = {
         ("unit",): "load_unit_image",
         ("terrain", "features"): "load_feature_image",
+        ("locale",): "load_feature_image",
     }
     data_dir = "data"
     img_dir = os.path.join(data_dir, "img")

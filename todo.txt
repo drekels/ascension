@@ -9,9 +9,8 @@ Sprites
 
 Tiles
  * Render sea edges
+ * Redraw Mountain features
  * Draw Grasslands
- * Arrange mountains
- * Arrange Forests
  * Draw wastes + features + arrange
  * Draw Badlands features + arrange
  * Draw Dunes
