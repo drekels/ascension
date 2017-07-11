@@ -19,6 +19,7 @@ LOG = logging.getLogger(__name__)
 
 TILE_GROUP = 0
 UNIT_GROUP = -10
+SHROUD_GROUP = -15
 OVERLAY_GROUP = -20
 ON_TRANSITION_END = ON_ANIMATION_END
 
@@ -217,7 +218,7 @@ class AscAnimationPlayer(SpriteAnimationPlayer):
 
 
 def sprite_cmp(sprite, other):
-    funcs = [lambda x: -x.z, lambda x: -x.y, lambda x: id(x)]
+    funcs = [lambda x: -x.y, lambda x: id(x)]
     for func in funcs:
         this_value = func(sprite)
         other_value = func(other)
@@ -266,6 +267,13 @@ class Sprite(object):
 
     __cmp__ = sprite_cmp
 
+    def delete(self):
+        for subsprite in self.subsprites:
+            subsprite.delete()
+        if self.pyglet_sprite:
+            self.pyglet_sprite.delete()
+        SpriteManager.remove_sprite(self)
+
     def __unicode__(self):
         return "Sprite(x={x}, y={y}, {component})".format(
             component=self.component_name, x=self.x, y=self.y
@@ -295,7 +303,7 @@ class Sprite(object):
             z = 0
         self.x = x
         self.y = y
-        self.xy_updated = True
+        self.xyz_updated = True
 
     def set_component(self, component_name=None, component=None, displacement_x=0,
                       displacement_y=0, duration=None, anchor=None):
@@ -306,22 +314,23 @@ class Sprite(object):
         self.component = component
         self.image = SpriteManager.get_component_image(component.name)
         self.duration = duration
-        if not self.pyglet_sprite:
-            self.pyglet_sprite = pyglet.sprite.Sprite(
-                self.image, x=0, y=0, batch=SpriteManager.batch
-            )
-        else:
-            self.pyglet_sprite.image = self.image
         self.anchor = anchor or self.anchor
         self.anchor_x, self.anchor_y = self.component.get_anchor(self.anchor)
         self.displacement_x = displacement_x
         self.displacement_y = displacement_y
-        self.xy_updated = True
+        if not self.pyglet_sprite:
+            draw_x, draw_y, draw_z = self.get_pyglet_xyz()
+            self.pyglet_sprite = pyglet.sprite.Sprite(
+                self.image, x=draw_x, y=draw_y, order=draw_z, batch=SpriteManager.batch
+            )
+        else:
+            self.pyglet_sprite.image = self.image
+        self.xyz_updated = True
 
     def add_subsprite(self, subsprite):
         self.subsprites.append(subsprite)
 
-    def determine_pyglet_xy(self):
+    def get_pyglet_xyz(self):
         x, y = self.x, self.y
         if self.parent:
             x += self.parent.x
@@ -334,13 +343,17 @@ class Sprite(object):
             (y + self.displacement_y - self.component_height + self.anchor_y)
             * conf.sprite_scale
         )
+        draw_z = self.z_group + 0.001 * y + 0.00001 * x
+        return draw_x, draw_y, draw_z
+
+    def update_pyglet_xy(self):
+        draw_x, draw_y, draw_z = self.get_pyglet_xyz()
         if draw_x != self.pyglet_sprite.x or draw_y != self.pyglet_sprite.y:
-            draw_z = self.z_group + 0.001 * y + 0.00001 * x
             self.pyglet_sprite.x = draw_x
             self.pyglet_sprite.y = draw_y
             self.pyglet_sprite.order = draw_z
         for subsprite in self.subsprites:
-            subsprite.determine_pyglet_xy()
+            subsprite.update_pyglet_xy()
 
     def get_component_center(self):
         return self.component_width / 2, self.component_height
@@ -353,9 +366,9 @@ class Sprite(object):
                     engine.pass_time(timedelta(seconds=time_passed))
                 except Exception:
                     LOG.exception("Exception encountered in pass_time of engine {}".format(engine))
-        if self.xy_updated:
-            self.determine_pyglet_xy()
-            self.xy_updated = False
+        if self.xyz_updated:
+            self.update_pyglet_xy()
+            self.xyz_updated = False
 
     def start_animation(self, animation, override=False, **kwargs):
         if self.animation_player and not self.animation_player.iscomplete():
@@ -486,10 +499,13 @@ class SpriteManager(object):
 
     def add_sprite(self, sprite):
         self.sprites.append(sprite)
+        for subsprite in sprite.subsprites:
+            self.add_sprite(subsprite)
 
     def remove_sprite(self, sprite):
-        group = self.sprites[sprite]
-        self.sprite_groups[group].remove_sprite(sprite)
+        for subsprite in sprite.subsprites:
+            self.remove_sprite(subsprite)
+        self.sprites.remove(sprite)
 
     def draw_sprites(self, offset):
         self.batch.draw()

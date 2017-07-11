@@ -6,7 +6,9 @@ from decimal import Decimal
 from Queue import PriorityQueue
 import yaml
 
-from ascension.ascsprite import TILE_GROUP, UNIT_GROUP, Sprite, TextSprite
+from ascension.ascsprite import (
+    SHROUD_GROUP, TILE_GROUP, UNIT_GROUP, Sprite, TextSprite, SpriteManager
+)
 from ascension.util import Singleton
 from ascension.perlin import TileablePerlinGenerator
 from ascension.settings import AscensionConf as conf
@@ -68,6 +70,16 @@ class TileMap(object):
         self.generate_square()
         self.determine_outer_limits()
         self.assign_terrain()
+        origin = self.gettile(0, 0)
+        origin.explored = True
+        origin.edged = True
+        for x, y in DIRECTIONS.values():
+            tile = self.gettile(x, y)
+            tile.explored = True
+            tile.edged = True
+            for i, j in DIRECTIONS.values():
+                edged_tile = self.gettile(x+i, y+j)
+                edged_tile.edged = True
 
     def generate_square(self, width=14):
         self.width, self.height = width, width
@@ -176,10 +188,6 @@ class TileMap(object):
     def hastile(self, x, y):
         return x in self.tile_map and y in self.tile_map[x]
 
-    def get_tile_sprites(self):
-        for tile in self.tiles:
-            yield tile.get_sprite()
-
     def add_tile_sprites(self, sprite_manager, anchor=(0, 0)):
         for tile in self.tiles:
             self.add_tile_sprite(tile, sprite_manager)
@@ -194,10 +202,7 @@ class TileMap(object):
         return x_pos, y_pos
 
     def add_tile_sprite(self, tile, sprite_manager):
-        s = tile.get_sprite()
-        sprite_manager.add_sprite(s)
-        for feature_sprite in tile.get_feature_sprites():
-            sprite_manager.add_sprite(feature_sprite)
+        tile.initialize_sprites()
 
     def get_clicked_tile(self, x, y):
         LOG.debug("Entering get_clicked_tile...")
@@ -227,6 +232,29 @@ class TileMap(object):
 
         return value
 
+    def explore_after_move_to(self, x, y):
+        to_edge = []
+        for i, j in DIRECTIONS.values():
+            x1, y1 = x+i, y+j
+            tile = self.gettile(x1, y1)
+            if tile and not tile.explored:
+                tile.explore((x, y))
+                if (x1, y1) in to_edge:
+                    to_edge.remove((x1, y1))
+                for k, l in DIRECTIONS.values():
+                    x2, y2 = x1+k, y1+l
+                    edge_tile = self.gettile(x2, y2)
+                    if (    edge_tile
+                        and not edge_tile.edged
+                        and not edge_tile.explored
+                        and (x2, y2) not in to_edge
+                       ):
+                        to_edge.append((x2, y2))
+        for e in to_edge:
+            print "edgeing {}".format(e)
+            tile = self.gettile(*e)
+            tile.edge()
+
 
 class Tile(object):
 
@@ -237,24 +265,18 @@ class Tile(object):
         self.y_pos = y_pos
         self.imgnum = (self.x % 2) * 2 + (self.y - self.x / 2) % 2
         self.sprite = None
+        self.shroud_sprite = None
         self.coor_sprite = None
         self.feature_map = None
         self.locale = None
+        self.explored = False
+        self.edged = False
 
-    def get_sprite(self):
-        if not self.sprite:
+    def initialize_sprites(self):
+        if self.explored:
             self.make_sprite()
-        return self.sprite
-
-    def get_coor_sprite(self):
-        if not self.coor_sprite:
-            self.make_coor_sprite()
-        return self.coor_sprite
-
-    def get_feature_sprites(self):
-        if not hasattr(self, 'feature_sprites'):
-            self.make_feature_sprites()
-        return self.feature_sprites
+        elif self.edged:
+            self.make_shroud_sprite()
 
     def make_sprite(self):
         component_name = "terrain.grassland"
@@ -270,8 +292,13 @@ class Tile(object):
             component_name=component_name,
             z_group=TILE_GROUP,
         )
+
+        self.make_feature_sprites()
+
         if self.locale == 'village':
             self.make_locale_sprite()
+
+        SpriteManager.add_sprite(self.sprite)
 
         if self.terrain == 'sea':
             self.start_tile_animation()
@@ -281,6 +308,26 @@ class Tile(object):
             "terrain.sea.sea_{}".format(self.imgnum), extra_time=extra_time,
             end_callback=self.start_tile_animation
         )
+
+    def explore(self, source):
+        self.explored = True
+        self.remove_shroud(source)
+        self.make_sprite()
+
+    def edge(self):
+        self.edged = True
+        self.make_shroud_sprite()
+
+    def remove_shroud(self, source):
+        self.shroud_sprite.delete()
+        self.shroud_sprite = None
+
+    def make_shroud_sprite(self):
+        self.shroud_sprite = Sprite(
+            x=self.x_pos, y=self.y_pos, component_name="terrain.shroud",
+            z_group=UNIT_GROUP,
+        )
+        SpriteManager.add_sprite(self.shroud_sprite)
 
     def make_coor_sprite(self):
         self.coor_sprite = TextSprite(
@@ -313,8 +360,6 @@ class Tile(object):
             parent=self.sprite,
         )
         self.locale_sprite = sprite
-
-
 
     def make_feature_sprite(self, feature_name, x, y):
         sprite = Sprite(

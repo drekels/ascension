@@ -1,0 +1,4 @@
+components:
+  - name: shroud
+    tile_x: 39
+    tile_y: 23

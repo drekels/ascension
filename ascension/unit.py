@@ -89,6 +89,7 @@ class UnitGroup(object):
             self.units_in_transit.append(unit)
             new_position = self.get_unit_position(unit, position)
             unit.move_to(new_position, direction, self.facing, speed)
+        TileMap.explore_after_move_to(x, y)
 
     def get_move_direction(self, x, y):
         direction = (x - self.x, y - self.y)
