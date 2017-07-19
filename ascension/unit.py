@@ -80,6 +80,7 @@ class UnitGroup(object):
                 "Cannot move from ({}, {}) to ({}, {}) as they are not adjacent".format(
                 self.x, self.y, x, y)
             )
+        TileMap.explore_after_move_to(x, y)
         self.facing, direction, speed = self.get_move_direction(x, y)
         self.x, self.y = x, y
         self.intransit = True
@@ -89,7 +90,6 @@ class UnitGroup(object):
             self.units_in_transit.append(unit)
             new_position = self.get_unit_position(unit, position)
             unit.move_to(new_position, direction, self.facing, speed)
-        TileMap.explore_after_move_to(x, y)
 
     def get_move_direction(self, x, y):
         direction = (x - self.x, y - self.y)
@@ -151,7 +151,7 @@ class Unit(object):
 
     def move_after_delay(self, time_passed=0.0):
         self.sprite.move_to(
-            self.pending_position, self.pending_speed, self.pending_animation,
+            self.pending_position, self.pending_speed, animation=self.pending_animation,
             resting_component=self.pending_resting, end_callback=self.finish_move
         )
 

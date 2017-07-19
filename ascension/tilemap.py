@@ -251,7 +251,6 @@ class TileMap(object):
                        ):
                         to_edge.append((x2, y2))
         for e in to_edge:
-            print "edgeing {}".format(e)
             tile = self.gettile(*e)
             tile.edge()
 
@@ -319,7 +318,7 @@ class Tile(object):
         self.make_shroud_sprite()
 
     def remove_shroud(self, source):
-        self.shroud_sprite.delete()
+        self.shroud_sprite.fade(duration=1, delete_after=True)
         self.shroud_sprite = None
 
     def make_shroud_sprite(self):

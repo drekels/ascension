@@ -1,6 +1,7 @@
 import pyglet
 import logging
 import yaml
+import math
 from datetime import timedelta
 from math import floor, ceil
 import os
@@ -8,7 +9,7 @@ import os
 from pyglet.text import Label
 from sprite.component import SpriteComponent
 from sprite.animation import (
-    SpriteAnimation, SpriteAnimationPlayer, SpriteAnimationStage, ON_ANIMATION_END
+    SpriteAnimation, SpriteAnimationStage, ON_ANIMATION_END
 )
 
 from ascension.util import Singleton
@@ -26,11 +27,25 @@ ON_TRANSITION_END = ON_ANIMATION_END
 
 class TransitionEngine(object):
 
-    def __init__(self, sprite):
-        self.callbacks = {}
+    def __init__(self, sprite, delete_after=False, end_callback=None, callbacks={}):
+        self.delete_after = delete_after
         self.sprite = sprite
+        for hook, callback_list in callbacks.items():
+            for callback in callback_list:
+                self.add_callback(hook, callback)
+        if end_callback:
+            if not isinstance(end_callback, (tuple, list)):
+                end_callback = [end_callback]
+            for callback in end_callback:
+                self.add_end_callback(callback)
+        if delete_after:
+            self.add_end_callback(sprite.delete)
+        self.add_end_callback(RemoveEngineCallback(self.sprite, self))
+
 
     def add_callback(self, hook, callback):
+        if not hasattr(self, "callbacks"):
+            self.callbacks = {}
         try:
             iter(callback)
             callbacks = callback
@@ -60,14 +75,15 @@ class TransitionEngine(object):
         raise NotImplementedError()
 
     def start(self, extra_time=timedelta(0)):
-        pass
+        if extra_time:
+            self.do_transition(extra_time)
 
 
 class StaticDelay(TransitionEngine):
 
-    def __init__(self, sprite, duration=0.0, **kwargs):
+    def __init__(self, sprite, duration=0, **kwargs):
         super(StaticDelay, self).__init__(sprite, **kwargs)
-        self.duration = duration
+        self.duration = float(duration)
         self.delay_remaining = self.duration and timedelta(seconds=self.duration) or False
 
     def iscomplete(self):
@@ -87,7 +103,6 @@ class MoveEngine(TransitionEngine):
         super(MoveEngine, self).__init__(sprite, **kwargs)
         self.destination = destination
         self.speed = speed
-        self.calc_unit_vector
         self.complete = False
         self.calc_unit_vector()
 
@@ -150,6 +165,42 @@ class MoveWithAnimationEngine(MoveEngine):
             self.sprite.set_component(self.resting_component)
 
 
+class FadeEngine(TransitionEngine):
+
+    def __init__(self, sprite, start_alpha=None, finish_alpha=0, duration=0,
+                 **kwargs):
+        super(FadeEngine, self).__init__(sprite, **kwargs)
+        self.start_alpha = start_alpha
+        self.finish_alpha = finish_alpha
+        self.duration = float(duration)
+
+    def start(self, extra_time=timedelta(0)):
+        if self.duration == 0:
+            self.sprite.set_opacity(self.finish_alpha)
+            return
+        if not self.start_alpha:
+            self.start_alpha = self.sprite.opacity
+        else:
+            self.sprite.set_opacity(self.start_alpha)
+        self.continuous_alpha = float(self.start_alpha)
+        self.alpha_diff = self.finish_alpha - self.start_alpha
+        self.direction = self.alpha_diff > 0 and 1 or -1
+        self.time_alpha_ratio = self.alpha_diff / float(self.duration)
+        super(FadeEngine, self).start(extra_time=extra_time)
+
+    def do_transition(self, time_passed):
+        opacity_change = time_passed.total_seconds() * self.alpha_diff
+        self.continuous_alpha += opacity_change
+        left = self.finish_alpha - self.continuous_alpha
+        if left * self.direction <= 0:
+            self.sprite.set_opacity(self.finish_alpha)
+        else:
+            self.sprite.set_opacity(math.floor(self.continuous_alpha))
+
+    def iscomplete(self):
+        return self.sprite.opacity == self.finish_alpha
+
+
 class AscSpriteComponent(SpriteComponent):
 
     def __init__(self, *args, **kwargs):
@@ -208,13 +259,36 @@ class AscAnimation(SpriteAnimation):
             stage.anchor = self.anchor
 
 
-class AscAnimationPlayer(SpriteAnimationPlayer):
+class AscAnimationPlayer(TransitionEngine):
+
+    def __init__(self, sprite, animation, **kwargs):
+        self.add_end_callback(sprite.clear_complete_animation)
+        super(AscAnimationPlayer, self).__init__(sprite, **kwargs)
+        self.animation = animation
+        self.stage_index = 0
 
     def start(self, extra_time=timedelta(0)):
-        self.start_animation(extra_time=extra_time)
+        self.stage_index = 0
+        self.start_next_stage()
+        super(AscAnimationPlayer, self).start(extra_time=extra_time)
 
-    def pass_time(self, time_passed):
-        self.pass_animation_time(time_passed)
+    def start_next_stage(self, extra_time=timedelta(0)):
+        try:
+            self.stage = self.animation.stages[self.stage_index]
+        except IndexError:
+            return extra_time
+        self.stage.update_renderer(self.sprite)
+        self.stage_time_remaining = timedelta(seconds=self.stage.duration)
+        return self.do_transition(extra_time)
+
+    def do_transition(self, time_passed):
+        self.stage_time_remaining -= time_passed
+        if self.stage_time_remaining <= timedelta():
+            self.stage_index += 1
+            return self.start_next_stage(extra_time=-self.stage_time_remaining)
+
+    def iscomplete(self):
+        return self.stage_index == len(self.animation.stages)
 
 
 def sprite_cmp(sprite, other):
@@ -245,7 +319,8 @@ class RemoveEngineCallback(object):
 
 class Sprite(object):
 
-    def __init__(self, x=0, y=0, z_group=0, component_name=None, anchor="center", parent=None):
+    def __init__(self, x=0, y=0, z_group=0, component_name=None, anchor="center", parent=None,
+                 opacity=255):
         self.pyglet_sprite = None
         self.x = floor(x)
         self.y = floor(y)
@@ -259,6 +334,7 @@ class Sprite(object):
         self.displacement_y = 0
         self.anchor = anchor
         self.parent = parent
+        self.set_opacity(opacity)
         if parent:
             parent.add_subsprite(self)
         self.subsprites = []
@@ -267,7 +343,10 @@ class Sprite(object):
 
     __cmp__ = sprite_cmp
 
-    def delete(self):
+    def delete(self, extra_time=timedelta(0)):
+        self.transition_engines = []
+        self.animation_player = None
+        self.animation = None
         for subsprite in self.subsprites:
             subsprite.delete()
         if self.pyglet_sprite:
@@ -321,14 +400,21 @@ class Sprite(object):
         if not self.pyglet_sprite:
             draw_x, draw_y, draw_z = self.get_pyglet_xyz()
             self.pyglet_sprite = pyglet.sprite.Sprite(
-                self.image, x=draw_x, y=draw_y, order=draw_z, batch=SpriteManager.batch
+                self.image, x=draw_x, y=draw_y, order=draw_z, batch=SpriteManager.batch,
             )
+            self.pyglet_sprite.opacity = self.opacity
         else:
             self.pyglet_sprite.image = self.image
         self.xyz_updated = True
 
+    def set_opacity(self, opacity):
+        self.opacity = opacity
+        if self.pyglet_sprite:
+            self.pyglet_sprite.opacity = opacity
+
     def add_subsprite(self, subsprite):
         self.subsprites.append(subsprite)
+
 
     def get_pyglet_xyz(self):
         x, y = self.x, self.y
@@ -370,7 +456,7 @@ class Sprite(object):
             self.update_pyglet_xy()
             self.xyz_updated = False
 
-    def start_animation(self, animation, override=False, **kwargs):
+    def start_animation(self, animation, extra_time=0, override=False, **kwargs):
         if self.animation_player and not self.animation_player.iscomplete():
             if override:
                 self.transition_engines.remove(self.animation_player)
@@ -378,36 +464,33 @@ class Sprite(object):
                 raise Exception("{0} set to animation {1} while already in animation {2}".format(
                     self, animation, self.animation
                 ))
-        if not issubclass(type(animation), AscAnimation):
+        if not isinstance(animation, AscAnimation):
             animation = SpriteManager.get_animation(animation)
         self.animation = animation
-        self.animation_player = AscAnimationPlayer(self, self.animation)
-        self.animation_player.add_end_callback(self.clear_complete_animation)
-        self.add_transition_engine(self.animation_player, **kwargs)
+        self.animation_player = AscAnimationPlayer(self, self.animation, **kwargs)
+        self.add_transition_engine(self.animation_player, extra_time=extra_time)
 
-    def static_delay(self, duration, **kwargs):
-        self.add_transition_engine(StaticDelay(self, duration=duration), **kwargs)
+    def static_delay(self, duration, extra_time=timedelta(0), **kwargs):
+        engine = StaticDelay(self, duration, **kwargs)
+        self.add_transition_engine(engine, extra_time)
 
-    def move_to(self, destination, speed, animation=None, resting_component=None, **kwargs):
-        if animation:
+    def move_to(self, destination, speed, extra_time=0, **kwargs):
+        if "animation" in kwargs and kwargs["animation"]:
             move_engine = MoveWithAnimationEngine(
-                self, destination, speed, animation, resting_component=resting_component,
+                self, destination, speed, **kwargs
             )
         else:
-            move_engine = MoveEngine(self, destination, speed)
-        self.add_transition_engine(move_engine, **kwargs)
+            kwargs.pop("resting_component", None)
+            move_engine = MoveEngine(self, destination, speed, **kwargs)
+        self.add_transition_engine(move_engine, extra_time=extra_time)
 
-    def add_transition_engine(self, engine, extra_time=0, end_callback=None, callbacks={}):
+    def fade(self, extra_time=0, **kwargs):
+        fade = FadeEngine(self, **kwargs)
+        self.add_transition_engine(fade, extra_time=extra_time)
+
+
+    def add_transition_engine(self, engine, extra_time):
         self.transition_engines.append(engine)
-        for hook, callback_list in callbacks.items():
-            for callback in callback_list:
-                engine.add_callback(hook, callback)
-        if end_callback:
-            if not isinstance(end_callback, (tuple, list)):
-                end_callback = [end_callback]
-            for callback in end_callback:
-                engine.add_end_callback(callback)
-        engine.add_end_callback(RemoveEngineCallback(self, engine))
         engine.start(extra_time=timedelta(0))
 
     def stop_animation(self, run_callbacks=False, error_on_no_animation=True):
