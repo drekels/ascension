@@ -71,6 +71,11 @@ class KeyboardHandler(object):
         MainWindowManager.move(PlayerConf.scroll_speed * time_passed, 0)
         LOG.debug("MainWindowManager 'x' set to '{}'".format(MainWindowManager.x))
 
+    tick_w = tick_up
+    tick_s = tick_down
+    tick_a = tick_left
+    tick_d = tick_right
+
     def press_o(self):
         SpriteManager.toggle_group_active(OVERLAY_GROUP)
 

@@ -55,7 +55,7 @@ game_settings = SettingSet([
     },
     {
         "name": "window_width",
-        "default": 1500,
+        "default": 1400,
         "parse": int,
     },
     {
@@ -96,6 +96,21 @@ game_settings = SettingSet([
         "name": "frame_tile_count_vert",
         "default": 2,
         "parse": int,
+    },
+    {
+        "name": "shroud_fade_delay",
+        "default": 0.5,
+        "parse": float,
+    },
+    {
+        "name": "shroud_fade_time",
+        "default": 0.5,
+        "parse": float,
+    },
+    {
+        "name": "shroud_move_speed",
+        "default": 30,
+        "parse": float,
     },
 ])
 
@@ -168,6 +183,13 @@ class AscensionConf(SettingBased):
     @calc_property
     def frame_pixel_count(self):
         return self.frame_width * self.frame_height
+
+    def get_speed_multiplier(self, direction):
+        if direction in [(0, 1), (0, -1)]:
+            return self.perspective_sin
+        else:
+            return self.diagonal_distance_multiplier
+
 
 
 AscensionConf.reset()

@@ -291,18 +291,6 @@ class AscAnimationPlayer(TransitionEngine):
         return self.stage_index == len(self.animation.stages)
 
 
-def sprite_cmp(sprite, other):
-    funcs = [lambda x: -x.y, lambda x: id(x)]
-    for func in funcs:
-        this_value = func(sprite)
-        other_value = func(other)
-        if this_value < other_value:
-            return -1
-        elif this_value > other_value:
-            return 1
-    return 0
-
-
 class RemoveEngineCallback(object):
 
     def __init__(self, sprite, engine):
@@ -310,52 +298,71 @@ class RemoveEngineCallback(object):
         self.engine = engine
 
     def __call__(self, extra_time):
-        if self.engine not in self.sprite.transition_engines:
-            raise KeyError(
-                "Unable to find engine {} in sprite {}".format(self.engine, self.sprite)
-            )
-        self.sprite.transition_engines.remove(self.engine)
+        if self.engine in self.sprite.transition_engines:
+            self.sprite.transition_engines.remove(self.engine)
 
 
-class Sprite(object):
+class Callback(object):
 
-    def __init__(self, x=0, y=0, z_group=0, component_name=None, anchor="center", parent=None,
-                 opacity=255):
-        self.pyglet_sprite = None
-        self.x = floor(x)
-        self.y = floor(y)
-        self.z_group = z_group
+    def __init__(self, function, *args, **kwargs):
+        self.function = function
+        self.args = args
+        self.kwargs = kwargs
+        circular = kwargs.pop("circular_callback", False)
+        if circular:
+            if "end_callback" in kwargs:
+                end_callback = kwargs["end_callback"]
+                if not isinstance(end_callback, (tuple, list)):
+                    end_callback = [end_callback]
+            else:
+                end_callback = []
+            end_callback.append(self)
+            kwargs["end_callback"] = end_callback
+
+
+    def __call__(self, extra_time):
+        self.function(*self.args, extra_time=extra_time, **self.kwargs)
+
+
+def transition_engine(func):
+    def new_func(self, *args, **kwargs):
+        static_delay = kwargs.pop("static_delay", 0)
+        extra_time = kwargs.pop("extra_time", timedelta(0))
+        if static_delay:
+            callback = Callback(new_func, self, *args, **kwargs)
+            self.static_delay(static_delay, extra_time=extra_time, end_callback=callback)
+        else:
+            engine = func(self, *args, **kwargs)
+            self.transition_engines.append(engine)
+            engine.start(extra_time=extra_time)
+    return new_func
+
+
+class BaseSprite(object):
+
+    def __init__(self, component_name=None, anchor="center"):
         self.component = None
-        self.visible = True
         self.transition_engines = []
         self.animation_player = None
         self.animation = None
         self.displacement_x = 0
         self.displacement_y = 0
         self.anchor = anchor
-        self.parent = parent
-        self.set_opacity(opacity)
-        if parent:
-            parent.add_subsprite(self)
-        self.subsprites = []
+        self.deleted = False
+        self.xyz_updated = True
         if component_name:
             self.set_component(component_name, anchor=anchor)
 
-    __cmp__ = sprite_cmp
-
     def delete(self, extra_time=timedelta(0)):
+        self.deleted = True
         self.transition_engines = []
         self.animation_player = None
         self.animation = None
-        for subsprite in self.subsprites:
-            subsprite.delete()
-        if self.pyglet_sprite:
-            self.pyglet_sprite.delete()
         SpriteManager.remove_sprite(self)
 
     def __unicode__(self):
-        return "Sprite(x={x}, y={y}, {component})".format(
-            component=self.component_name, x=self.x, y=self.y
+        return "{classname}(x={x}, y={y}, {component})".format(
+            classname=type(self).__name__, component=self.component_name, x=self.x, y=self.y
         )
 
     def __str__(self):
@@ -377,69 +384,18 @@ class Sprite(object):
     def component_center(self):
         return self.component_width / 2, self.component_height / 2
 
-    def set_position(self, x, y, z=None):
-        if z is None:
-            z = 0
-        self.x = x
-        self.y = y
-        self.xyz_updated = True
-
-    def set_component(self, component_name=None, component=None, displacement_x=0,
-                      displacement_y=0, duration=None, anchor=None):
-        if not component:
-            if not component_name:
-                raise ValueError("set_component requires either a component or a component name")
-            component = SpriteManager.get_component(component_name)
-        self.component = component
-        self.image = SpriteManager.get_component_image(component.name)
-        self.duration = duration
-        self.anchor = anchor or self.anchor
-        self.anchor_x, self.anchor_y = self.component.get_anchor(self.anchor)
-        self.displacement_x = displacement_x
-        self.displacement_y = displacement_y
-        if not self.pyglet_sprite:
-            draw_x, draw_y, draw_z = self.get_pyglet_xyz()
-            self.pyglet_sprite = pyglet.sprite.Sprite(
-                self.image, x=draw_x, y=draw_y, order=draw_z, batch=SpriteManager.batch,
-            )
-            self.pyglet_sprite.opacity = self.opacity
-        else:
-            self.pyglet_sprite.image = self.image
-        self.xyz_updated = True
-
-    def set_opacity(self, opacity):
-        self.opacity = opacity
-        if self.pyglet_sprite:
-            self.pyglet_sprite.opacity = opacity
-
     def add_subsprite(self, subsprite):
         self.subsprites.append(subsprite)
 
-
-    def get_pyglet_xyz(self):
-        x, y = self.x, self.y
-        if self.parent:
-            x += self.parent.x
-            y += self.parent.y
-
-        draw_x = (
-            (x + self.displacement_x - self.anchor_x) * conf.sprite_scale
-        )
-        draw_y = (
-            (y + self.displacement_y - self.component_height + self.anchor_y)
-            * conf.sprite_scale
-        )
-        draw_z = self.z_group + 0.001 * y + 0.00001 * x
-        return draw_x, draw_y, draw_z
-
-    def update_pyglet_xy(self):
-        draw_x, draw_y, draw_z = self.get_pyglet_xyz()
-        if draw_x != self.pyglet_sprite.x or draw_y != self.pyglet_sprite.y:
-            self.pyglet_sprite.x = draw_x
-            self.pyglet_sprite.y = draw_y
-            self.pyglet_sprite.order = draw_z
-        for subsprite in self.subsprites:
-            subsprite.update_pyglet_xy()
+    def get_relative_pyglet_xy(self):
+        if self.xyz_updated:
+            self.rel_x = (
+                (self.displacement_x - self.anchor_x)
+            )
+            self.rel_y = (
+                (self.displacement_y - self.component_height + self.anchor_y)
+            )
+        return self.rel_x, self.rel_y
 
     def get_component_center(self):
         return self.component_width / 2, self.component_height
@@ -451,12 +407,12 @@ class Sprite(object):
                 try:
                     engine.pass_time(timedelta(seconds=time_passed))
                 except Exception:
-                    LOG.exception("Exception encountered in pass_time of engine {}".format(engine))
-        if self.xyz_updated:
-            self.update_pyglet_xy()
-            self.xyz_updated = False
+                    LOG.exception(
+                        "Exception encountered in pass_time of engine {}".format(engine)
+                    )
 
-    def start_animation(self, animation, extra_time=0, override=False, **kwargs):
+    @transition_engine
+    def start_animation(self, animation, override=False, **kwargs):
         if self.animation_player and not self.animation_player.iscomplete():
             if override:
                 self.transition_engines.remove(self.animation_player)
@@ -468,13 +424,15 @@ class Sprite(object):
             animation = SpriteManager.get_animation(animation)
         self.animation = animation
         self.animation_player = AscAnimationPlayer(self, self.animation, **kwargs)
-        self.add_transition_engine(self.animation_player, extra_time=extra_time)
+        return self.animation_player
 
-    def static_delay(self, duration, extra_time=timedelta(0), **kwargs):
+    @transition_engine
+    def static_delay(self, duration, **kwargs):
         engine = StaticDelay(self, duration, **kwargs)
-        self.add_transition_engine(engine, extra_time)
+        return engine
 
-    def move_to(self, destination, speed, extra_time=0, **kwargs):
+    @transition_engine
+    def move_to(self, destination, speed, **kwargs):
         if "animation" in kwargs and kwargs["animation"]:
             move_engine = MoveWithAnimationEngine(
                 self, destination, speed, **kwargs
@@ -482,16 +440,12 @@ class Sprite(object):
         else:
             kwargs.pop("resting_component", None)
             move_engine = MoveEngine(self, destination, speed, **kwargs)
-        self.add_transition_engine(move_engine, extra_time=extra_time)
+        return move_engine
 
-    def fade(self, extra_time=0, **kwargs):
-        fade = FadeEngine(self, **kwargs)
-        self.add_transition_engine(fade, extra_time=extra_time)
-
-
-    def add_transition_engine(self, engine, extra_time):
-        self.transition_engines.append(engine)
-        engine.start(extra_time=timedelta(0))
+    @transition_engine
+    def fade(self, *args, **kwargs):
+        fade = FadeEngine(self, *args, **kwargs)
+        return fade
 
     def stop_animation(self, run_callbacks=False, error_on_no_animation=True):
         if self.animation_player:
@@ -507,6 +461,170 @@ class Sprite(object):
         self.animation = None
 
 
+class SpriteMaster(BaseSprite):
+
+    def __init__(self, **kwargs):
+        self.sprite_followers = []
+        super(SpriteMaster, self).__init__(**kwargs)
+
+    def delete(self, extra_time=timedelta(0)):
+        super(SpriteMaster, self).delete(extra_time=extra_time)
+        for follower in list(self.sprite_followers):
+            follower.delete()
+
+    def add_follower(self, follower):
+        if follower in self.sprite_followers:
+            raise KeyError("{} already has follower {}".format(self, follower))
+        self.set_follower_component(follower)
+        self.sprite_followers.append(follower)
+
+    def remove_follower(self, follower):
+        if follower not in self.sprite_followers:
+            raise KeyError(
+                "{} cannot remove follower {} because it doesn't have it".format(self, follower)
+            )
+        self.sprite_followers.remove(follower)
+
+    def set_component(self, component_name=None, component=None, displacement_x=0,
+                      displacement_y=0, duration=None, anchor=None):
+        if self.deleted:
+            return
+        if not component:
+            if not component_name:
+                raise ValueError("set_component requires either a component or a component name")
+            component = SpriteManager.get_component(component_name)
+        self.component = component
+        self.image = SpriteManager.get_component_image(component.name)
+        self.duration = duration
+        self.anchor = anchor or self.anchor
+        self.anchor_x, self.anchor_y = self.component.get_anchor(self.anchor)
+        self.displacement_x = displacement_x
+        self.displacement_y = displacement_y
+        for follower in self.sprite_followers:
+            self.set_follower_component(follower)
+
+    def set_follower_component(self, follower):
+        follower.set_component(
+            component=self.component, displacement_x=self.displacement_x,
+            displacement_y=self.displacement_y, duration=self.duration,
+            anchor=self.anchor
+        )
+
+
+
+class Sprite(BaseSprite):
+
+    def __init__(self, x=0, y=0, z_group=0, parent=None, master=None, opacity=255, **kwargs):
+        self.x = floor(x)
+        self.y = floor(y)
+        self.z_group = z_group
+        self.pyglet_sprite = None
+        self.visible = True
+        self.parent = parent
+        self.set_opacity(opacity)
+        if parent:
+            parent.add_subsprite(self)
+        self.subsprites = []
+
+        super(Sprite, self).__init__(**kwargs)
+
+        self.master = None
+        if master:
+            self.set_master(master)
+
+    def delete(self, extra_time=timedelta(0)):
+        super(Sprite, self).delete(extra_time=extra_time)
+        for subsprite in self.subsprites:
+            subsprite.delete()
+        self.subsprites = []
+        if self.pyglet_sprite:
+            self.pyglet_sprite.delete()
+            self.pyglet_sprite = None
+        if self.master:
+            self.master.remove_follower(self)
+
+    def tick(self, time_passed):
+        super(Sprite, self).tick(time_passed)
+        if self.xyz_updated:
+            self.update_pyglet_xy()
+            self.xyz_updated = False
+
+    def set_position(self, x, y, z=None):
+        if z is None:
+            z = 0
+        self.x = x
+        self.y = y
+        self.xyz_updated = True
+
+    def set_master(self, master):
+        master.add_follower(self)
+        self.master = master
+
+    def set_opacity(self, opacity):
+        self.opacity = opacity
+        if self.pyglet_sprite:
+            self.pyglet_sprite.opacity = opacity
+
+    def get_pyglet_xyz(self):
+        rel_x, rel_y = self.get_relative_pyglet_xy()
+        asc_x = self.x + rel_x
+        asc_y = self.y + rel_y
+        if self.parent:
+            asc_x += self.parent.x
+            asc_y += self.parent.y
+        draw_x = asc_x * conf.sprite_scale
+        draw_y = asc_y * conf.sprite_scale
+        draw_z = self.get_pyglet_z(asc_x, asc_y)
+        return draw_x, draw_y, draw_z
+
+    def set_component(self, component_name=None, component=None, displacement_x=0,
+                      displacement_y=0, duration=None, anchor=None):
+        if self.deleted:
+            return
+        if not component:
+            if not component_name:
+                raise ValueError("set_component requires either a component or a component name")
+            component = SpriteManager.get_component(component_name)
+        self.component = component
+        self.image = SpriteManager.get_component_image(component.name)
+        self.duration = duration
+        self.anchor = anchor or self.anchor
+        self.anchor_x, self.anchor_y = self.component.get_anchor(self.anchor)
+        self.displacement_x = displacement_x
+        self.displacement_y = displacement_y
+        if not self.pyglet_sprite:
+            draw_x, draw_y, draw_z = self.get_pyglet_xyz()
+            self.initialize_pyglet_sprite(
+                image=self.image, draw_x=draw_x, draw_y=draw_y, draw_z=draw_z,
+            )
+        else:
+            self.pyglet_sprite.image = self.image
+        self.xyz_updated = True
+
+    def initialize_pyglet_sprite(self, image, draw_x, draw_y, draw_z):
+        self.pyglet_sprite = pyglet.sprite.Sprite(
+            self.image, x=draw_x, y=draw_y, order=draw_z, batch=SpriteManager.batch,
+        )
+        self.pyglet_sprite.opacity = self.opacity
+
+    def update_pyglet_xy(self):
+        if self.deleted:
+            return
+        draw_x, draw_y, draw_z = self.get_pyglet_xyz()
+        if draw_x != self.pyglet_sprite.x or draw_y != self.pyglet_sprite.y:
+            self.pyglet_sprite.x = draw_x
+            self.pyglet_sprite.y = draw_y
+            self.pyglet_sprite.order = draw_z
+        for subsprite in self.subsprites:
+            subsprite.update_pyglet_xy()
+
+    def get_pyglet_z(self, x, y):
+        if self.parent:
+            x += self.parent.x
+            y += self.parent.y
+        return self.z_group + 0.001 * y + 0.00001 * x
+
+
 class TextSprite(object):
 
     def __init__(self, x=0, y=0, z=0, text=None, font_name="Times New Roman", font_size=20,
@@ -515,8 +633,6 @@ class TextSprite(object):
         self.set_text(
             text, font_name=font_name, font_size=font_size, anchor_x=anchor_x, anchor_y=anchor_y
         )
-
-    __cmp__ = sprite_cmp
 
     def set_position(self, x, y):
         for key, value in ("x", x), ("y", y):
@@ -582,8 +698,9 @@ class SpriteManager(object):
 
     def add_sprite(self, sprite):
         self.sprites.append(sprite)
-        for subsprite in sprite.subsprites:
-            self.add_sprite(subsprite)
+        if hasattr(sprite, "subsprites"):
+            for subsprite in sprite.subsprites:
+                self.add_sprite(subsprite)
 
     def remove_sprite(self, sprite):
         for subsprite in sprite.subsprites:
@@ -595,7 +712,10 @@ class SpriteManager(object):
 
     def tick(self, time_passed):
         for sprite in self.sprites:
-            sprite.tick(time_passed)
+            try:
+                sprite.tick(time_passed)
+            except Exception as e:
+                LOG.exception("Failed to tick sprite {}:{}".format(sprite, e))
 
     def get_adjusted_position(self, x, y, offset):
         x = ceil((x - offset[0]) / conf.sprite_scale)

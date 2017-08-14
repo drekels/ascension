@@ -7,7 +7,7 @@ from Queue import PriorityQueue
 import yaml
 
 from ascension.ascsprite import (
-    SHROUD_GROUP, TILE_GROUP, UNIT_GROUP, Sprite, TextSprite, SpriteManager
+    TILE_GROUP, UNIT_GROUP, Sprite, TextSprite, SpriteManager, SpriteMaster, Callback
 )
 from ascension.util import Singleton
 from ascension.perlin import TileablePerlinGenerator
@@ -33,6 +33,7 @@ DIRECTIONS = {
     'NE': (1, 0),
     'SE': (1, -1),
 }
+
 
 
 def get_tile_bunch_center(x, y):
@@ -67,6 +68,7 @@ class TileMap(object):
         self.count = 0
 
     def generate_map(self):
+        self.create_sprite_masters()
         self.generate_square()
         self.determine_outer_limits()
         self.assign_terrain()
@@ -80,6 +82,21 @@ class TileMap(object):
             for i, j in DIRECTIONS.values():
                 edged_tile = self.gettile(x+i, y+j)
                 edged_tile.edged = True
+
+    def create_sprite_masters(self):
+        self.sea_sprite_masters = []
+        for i in range(conf.frame_tile_count_vert * conf.frame_tile_count_horz):
+            animation_name = "terrain.sea.sea_{}".format(i)
+            component_name = "terrain.sea.sea_{:0>2}_00".format(i)
+            sprite_master = SpriteMaster(component_name=component_name)
+            callback = Callback(
+                sprite_master.start_animation, animation_name, circular_callback=True
+            )
+            sprite_master.start_animation(
+                animation_name, end_callback=callback
+            )
+            self.sea_sprite_masters.append(sprite_master)
+            SpriteManager.add_sprite(sprite_master)
 
     def generate_square(self, width=14):
         self.width, self.height = width, width
@@ -278,17 +295,21 @@ class Tile(object):
             self.make_shroud_sprite()
 
     def make_sprite(self):
-        component_name = "terrain.grassland"
+        component_name = None
+        master = None
         if self.terrain == 'sea':
-            component_name = "terrain.sea.sea_{:0>2}_00".format(self.imgnum)
-        if self.terrain == 'forest':
+            master = TileMap.sea_sprite_masters[self.imgnum]
+        elif self.terrain == 'forest':
+            component_name = 'terrain.grassland'
             self.feature_map = TileMap.get_feature_map('terrain.forest_{}'.format(self.imgnum))
-        if self.terrain == 'mountain':
+        elif self.terrain == 'mountain':
+            component_name = 'terrain.grassland'
             self.feature_map = TileMap.get_feature_map('terrain.mountain_{}'.format(self.imgnum))
+        else:
+            component_name = 'terrain.grassland'
 
         self.sprite = Sprite(
-            x=self.x_pos, y=self.y_pos,
-            component_name=component_name,
+            x=self.x_pos, y=self.y_pos, master=master, component_name=component_name,
             z_group=TILE_GROUP,
         )
 
@@ -298,9 +319,6 @@ class Tile(object):
             self.make_locale_sprite()
 
         SpriteManager.add_sprite(self.sprite)
-
-        if self.terrain == 'sea':
-            self.start_tile_animation()
 
     def start_tile_animation(self, extra_time=timedelta(0)):
         self.sprite.start_animation(
@@ -318,7 +336,18 @@ class Tile(object):
         self.make_shroud_sprite()
 
     def remove_shroud(self, source):
-        self.shroud_sprite.fade(duration=1, delete_after=True)
+        dir_x = self.x - source[0]
+        dir_y = self.y - source[1]
+        dest_x = self.x + dir_x
+        dest_y = self.y + dir_y
+        speed = conf.get_speed_multiplier((dir_x, dir_y)) * conf.shroud_move_speed
+        self.shroud_sprite.move_to(
+            TileMap.get_tile_pos(dest_x, dest_y), speed
+        )
+        self.shroud_sprite.fade(
+            static_delay=conf.shroud_fade_delay, duration=conf.shroud_fade_time,
+            delete_after=True
+        )
         self.shroud_sprite = None
 
     def make_shroud_sprite(self):
