@@ -11,3 +11,12 @@ components:
   - name: dead_tree_1
     stand_x: 5
     stand_y: 7
+  - name: sea_border_s
+    tile_x: 20
+    tile_y: -13
+  - name: sea_border_sw
+    tile_x: 35
+    tile_y: 1
+  - name: sea_border_nw
+    tile_x: 35
+    tile_y: 16

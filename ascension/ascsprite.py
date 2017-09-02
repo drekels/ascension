@@ -18,7 +18,9 @@ from ascension.settings import AscensionConf as conf
 LOG = logging.getLogger(__name__)
 
 
+SEA_GROUP = 1
 TILE_GROUP = 0
+TILE_OVERLAY_GROUP = -1
 UNIT_GROUP = -10
 SHROUD_GROUP = -15
 OVERLAY_GROUP = -20
@@ -549,9 +551,7 @@ class Sprite(BaseSprite):
             self.update_pyglet_xy()
             self.xyz_updated = False
 
-    def set_position(self, x, y, z=None):
-        if z is None:
-            z = 0
+    def set_position(self, x, y):
         self.x = x
         self.y = y
         self.xyz_updated = True
@@ -619,9 +619,6 @@ class Sprite(BaseSprite):
             subsprite.update_pyglet_xy()
 
     def get_pyglet_z(self, x, y):
-        if self.parent:
-            x += self.parent.x
-            y += self.parent.y
         return self.z_group + 0.001 * y + 0.00001 * x
 
 

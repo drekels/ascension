@@ -112,6 +112,11 @@ game_settings = SettingSet([
         "default": 30,
         "parse": float,
     },
+    {
+        "name": "reveal_map",
+        "default": False,
+        "parse": bool,
+    },
 ])
 
 player_settings = SettingSet([

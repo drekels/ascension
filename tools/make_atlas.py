@@ -66,8 +66,8 @@ class AtlasGenerator(object):
     x3_dir = os.path.join(img_dir, "x3")
 
     @classmethod
-    def make_atlas(cls, base_directory):
-        inst = cls(base_directory)
+    def make_atlas(cls, *base_directories):
+        inst = cls(base_directories)
         inst.load_images()
         inst.generate_atlas()
         if os.path.isdir(cls.img_dir):
@@ -78,15 +78,16 @@ class AtlasGenerator(object):
         inst.save_all_images()
         inst.save_atlas()
 
-    def __init__(self, base_directory):
-        self.base_directory = base_directory
+    def __init__(self, base_directories):
+        self.base_directories = base_directories
 
     def load_images(self):
         self.components = {}
         self.extra_component_meta = {}
         self.animations = []
         self.feature_maps = []
-        self.load_image_dir(self.base_directory)
+        for directory in self.base_directories:
+            self.load_image_dir(directory)
         self.update_extra_component_meta()
 
     def update_extra_component_meta(self):

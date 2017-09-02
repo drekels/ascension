@@ -1,4 +1,3 @@
-import shutil
 import os
 import yaml
 import signal
@@ -11,7 +10,9 @@ from PIL import Image
 
 from ascension.perlin import TileablePerlinGenerator
 from ascension.settings import AscensionConf as conf
-from tools.util import is_in_hex, print_progress_bar, get_topleft_tile_point
+from tools.util import (
+    is_in_hex, print_progress_bar, get_topleft_tile_point, clear_dir
+)
 
 
 color_map = [
@@ -75,7 +76,7 @@ class FrameGenerator(object):
         return self.image, self.pixels
 
 
-class SeaGenerator(object):
+class GrasslandGenerator(object):
     perlin_setup = [
         {"weight": Decimal('0.7'), "dimensions": (8, 50), "seed": 32},
         {"weight": Decimal('0.3'), "dimensions": (8, 50, 2), "seed": 1},
@@ -129,9 +130,7 @@ class SeaGenerator(object):
 
     def create_dir(self):
         self.imgdir = os.path.join(self.outdir, self.group_name)
-        if os.path.isdir(self.imgdir):
-            shutil.rmtree(self.imgdir)
-        os.mkdir(self.imgdir)
+        clear_dir(self.imgdir)
 
     def make_images(self):
         self.threads = []
@@ -195,6 +194,8 @@ class SeaGenerator(object):
         for x in range(conf.tile_width):
             for y in range(conf.tile_height):
                 if is_in_hex(x, y):
+                    if topleft_x == topleft_y and x == 20 and y == 20:
+                        print topleft_x, topleft_y, x, y
                     frame_x = (x + topleft_x) % conf.frame_width
                     frame_y = (y + topleft_y) % conf.frame_height
                     color = frame_pixels[frame_x, frame_y]

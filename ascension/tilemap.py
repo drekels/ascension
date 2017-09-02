@@ -7,7 +7,8 @@ from Queue import PriorityQueue
 import yaml
 
 from ascension.ascsprite import (
-    TILE_GROUP, UNIT_GROUP, Sprite, TextSprite, SpriteManager, SpriteMaster, Callback
+    TILE_GROUP, UNIT_GROUP, Sprite, TextSprite, SpriteManager,
+    SpriteMaster, Callback, TILE_OVERLAY_GROUP, SEA_GROUP
 )
 from ascension.util import Singleton
 from ascension.perlin import TileablePerlinGenerator
@@ -26,6 +27,7 @@ BUNCH_TRANSLATIONS = {
     6: (1, 0),
 }
 DIRECTIONS = {
+    'HOME': (0, 0),
     'N': (0, 1),
     'S': (0, -1),
     'NW': (-1, 1),
@@ -33,6 +35,7 @@ DIRECTIONS = {
     'NE': (1, 0),
     'SE': (1, -1),
 }
+DIRECTIONS_I = dict([(coor, direction) for direction, coor in DIRECTIONS.items()])
 
 
 
@@ -40,6 +43,10 @@ def get_tile_bunch_center(x, y):
     orientation = (x + 5*y) % 7
     xt, yt = BUNCH_TRANSLATIONS[orientation]
     return x + xt, y + yt
+
+def get_tile_bunch_position(x, y):
+    center_x, center_y = get_tile_bunch_center(x, y)
+    return DIRECTIONS_I[(x - center_x, y - center_y)]
 
 
 class TileMap(object):
@@ -72,16 +79,24 @@ class TileMap(object):
         self.generate_square()
         self.determine_outer_limits()
         self.assign_terrain()
-        origin = self.gettile(0, 0)
-        origin.explored = True
-        origin.edged = True
-        for x, y in DIRECTIONS.values():
-            tile = self.gettile(x, y)
-            tile.explored = True
+        if conf.reveal_map:
+            self.reveal_map()
+        else:
+            origin = self.gettile(0, 0)
+            origin.explored = True
+            origin.edged = True
+            for x, y in DIRECTIONS.values():
+                tile = self.gettile(x, y)
+                tile.explored = True
+                tile.edged = True
+                for i, j in DIRECTIONS.values():
+                    edged_tile = self.gettile(x+i, y+j)
+                    edged_tile.edged = True
+
+    def reveal_map(self):
+        for tile in self.tiles:
             tile.edged = True
-            for i, j in DIRECTIONS.values():
-                edged_tile = self.gettile(x+i, y+j)
-                edged_tile.edged = True
+            tile.explored = True
 
     def create_sprite_masters(self):
         self.sea_sprite_masters = []
@@ -287,6 +302,12 @@ class Tile(object):
         self.locale = None
         self.explored = False
         self.edged = False
+        self.tile_bunch_direction = get_tile_bunch_position(self.x, self.y)
+        self.tile_bunch_center = get_tile_bunch_center(self.x, self.y)
+
+    def get_neighbor(self, direction):
+        xd, yd = DIRECTIONS[direction]
+        return TileMap.gettile(self.x + xd, self.y + yd)
 
     def initialize_sprites(self):
         if self.explored:
@@ -310,7 +331,7 @@ class Tile(object):
 
         self.sprite = Sprite(
             x=self.x_pos, y=self.y_pos, master=master, component_name=component_name,
-            z_group=TILE_GROUP,
+            z_group=self.get_z_group(),
         )
 
         self.make_feature_sprites()
@@ -319,6 +340,9 @@ class Tile(object):
             self.make_locale_sprite()
 
         SpriteManager.add_sprite(self.sprite)
+
+    def get_z_group(self):
+        return self.terrain == 'sea' and SEA_GROUP or TILE_GROUP
 
     def start_tile_animation(self, extra_time=timedelta(0)):
         self.sprite.start_animation(
@@ -364,8 +388,11 @@ class Tile(object):
 
     def make_feature_sprites(self):
         self.feature_sprites = []
+        if self.terrain == 'sea':
+            self.make_sea_borders()
         if not self.feature_map:
             return
+
         for feature_info in self.feature_map.features:
             placeholder = feature_info['name']
             feature_name = self.feature_map.get_feature(self.terrain, placeholder)
@@ -373,6 +400,22 @@ class Tile(object):
             edges = feature_info['edges']
             if all([self.is_similar_terrain(edge) for edge in edges]):
                 self.make_feature_sprite(feature_name, x, y)
+
+    def make_sea_borders(self):
+        sprite_names = [
+            ('S', "terrain.features.sea_border_s"),
+            ('SW', "terrain.features.sea_border_sw"),
+            ('NW', "terrain.features.sea_border_nw"),
+        ]
+        for direction, sprite_name in sprite_names:
+            neighbor = self.get_neighbor(direction)
+            if (    neighbor
+                and neighbor.terrain == 'sea'
+                and neighbor.tile_bunch_center != self.tile_bunch_center
+               ):
+                self.make_feature_sprite(
+                    sprite_name, 0, 0, anchor="tile", z_group=TILE_OVERLAY_GROUP
+                )
 
     def is_similar_terrain(self, direction):
         d = DIRECTIONS[direction]
@@ -389,9 +432,9 @@ class Tile(object):
         )
         self.locale_sprite = sprite
 
-    def make_feature_sprite(self, feature_name, x, y):
+    def make_feature_sprite(self, feature_name, x, y, anchor="stand", z_group=UNIT_GROUP):
         sprite = Sprite(
-            component_name=feature_name, x=x, y=y, z_group=UNIT_GROUP, anchor="stand",
+            component_name=feature_name, x=x, y=y, z_group=z_group, anchor=anchor,
             parent=self.sprite
         )
         self.feature_sprites.append(sprite)

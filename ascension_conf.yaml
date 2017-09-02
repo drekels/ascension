@@ -23,3 +23,4 @@ logging:
 disabled_profilers:
     - SORT_SPRITES
 target_frame_rate: 60
+reveal_map: true

@@ -1,6 +1,7 @@
 import sys
 import random
 import os
+import shutil
 
 
 import yaml
@@ -21,6 +22,19 @@ NE_HEX_LINE = (
     conf.tile_point_slope,
     conf.tile_height / 2 - 1 - conf.tile_point_slope*(conf.tile_width - 1)
 )
+
+
+def use_dir(path):
+    if not os.path.isdir(path):
+        os.makedirs(path)
+
+
+def clear_dir(path):
+    if not os.path.isdir(path):
+        os.makedirs(path)
+    else:
+        shutil.rmtree(path)
+        os.makedirs(path)
 
 
 def line_gtoe(line, x, y):
@@ -236,6 +250,7 @@ class FeatureGenerator(object):
         d = {
             "feature_maps": self.feature_tiles
         }
+        use_dir(self.outdir)
         filepath = os.path.join(self.outdir, self.filename)
         with open(filepath, 'w') as f:
             f.write(yaml.dump(d))
