@@ -21,8 +21,6 @@ class Singleton(type):
 
 
     def __getattr__(cls, attr):
-        attr = getattr(cls.instance, attr)
-        print attr, type(attr)
         return getattr(cls.instance, attr)
 
 

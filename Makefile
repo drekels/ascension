@@ -46,6 +46,14 @@ dist: setup.py $(PYTHON_FILES) requirements.txt README MANIFEST.in MAKEFILE
 data:
 	mkdir data
 
+MAKE_SHORE_COMMAND = make_shore
+MAKE_SHORE_SCRIPT = $(TOOL_DIR)/make_shore.py
+
+.PHONY: shore
+shore: $(MAKE_SHORE_SCRIPT)
+	$(TEST_ENV_PYTHON) $(MANAGE_SCRIPT) $(MAKE_SHORE_COMMAND) $(GENERATED_TERRAIN_DIR)
+
+
 MAKE_GRASSLAND_COMMAND = make_grassland
 MAKE_GRASSLAND_SCRIPT = $(TOOL_DIR)/make_grassland.py
 
@@ -103,6 +111,7 @@ $(TEST_ENV): requirements.txt MAKEFILE $(IGNORE_DIRECTORY)
 	$(TEST_ENV_PIP) install mock
 	$(TEST_ENV_PIP) install unittest2
 	$(TEST_ENV_PIP) install nose
+	$(TEST_ENV_PIP) install nose-exclude
 
 .PHONY: clean
 clean:
@@ -115,11 +124,11 @@ pyshell: $(SAMPLE_ENV)
 
 .PHONY: test
 test: $(TEST_ENV)
-	$(TEST_ENV_NOSE)
+	$(TEST_ENV_NOSE) --exclude-dir=pyglet
 
 .PHONY: debug
 debug: $(TEST_ENV)
-	$(TEST_ENV_NOSE) -s
+	$(TEST_ENV_NOSE) -s --exclude-dir=pyglet
 
 $(IGNORE_DIRECTORY):
 	mkdir $(IGNORE_DIRECTORY)

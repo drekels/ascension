@@ -316,18 +316,14 @@ class Tile(object):
             self.make_shroud_sprite()
 
     def make_sprite(self):
-        component_name = None
+        component_name = "terrain.grassland.grassland_{:0>2}_00".format(self.imgnum)
         master = None
         if self.terrain == 'sea':
             master = TileMap.sea_sprite_masters[self.imgnum]
         elif self.terrain == 'forest':
-            component_name = 'terrain.grassland'
             self.feature_map = TileMap.get_feature_map('terrain.forest_{}'.format(self.imgnum))
         elif self.terrain == 'mountain':
-            component_name = 'terrain.grassland'
             self.feature_map = TileMap.get_feature_map('terrain.mountain_{}'.format(self.imgnum))
-        else:
-            component_name = 'terrain.grassland'
 
         self.sprite = Sprite(
             x=self.x_pos, y=self.y_pos, master=master, component_name=component_name,
@@ -390,6 +386,7 @@ class Tile(object):
         self.feature_sprites = []
         if self.terrain == 'sea':
             self.make_sea_borders()
+            self.make_shores()
         if not self.feature_map:
             return
 
@@ -416,6 +413,62 @@ class Tile(object):
                 self.make_feature_sprite(
                     sprite_name, 0, 0, anchor="tile", z_group=TILE_OVERLAY_GROUP
                 )
+
+    def make_shores(self):
+        neighbor_terrain = dict(
+            [(x, self.get_neighbor(x) and self.get_neighbor(x).terrain) for x in DIRECTIONS]
+        )
+        if neighbor_terrain["N"] != "sea" and neighbor_terrain["NW"] == "sea":
+            self.make_feature_sprite(
+                "terrain.features.shore_out_sw", 0, 0, anchor="tile", z_group=TILE_OVERLAY_GROUP
+            )
+        if neighbor_terrain["N"] != "sea" and neighbor_terrain["NE"] == "sea":
+            self.make_feature_sprite(
+                "terrain.features.shore_out_se", 0, 0, anchor="tile", z_group=TILE_OVERLAY_GROUP
+            )
+        if neighbor_terrain["SW"] != "sea" and neighbor_terrain["S"] == "sea":
+            self.make_feature_sprite(
+                "terrain.features.shore_out_e", 0, 0, anchor="tile", z_group=TILE_OVERLAY_GROUP
+            )
+        if neighbor_terrain["S"] != "sea" and neighbor_terrain["SE"] == "sea":
+            if (self.x, self.y) == (6, -10):
+                print "FOOOOBAR"
+            self.make_feature_sprite(
+                "terrain.features.shore_out_ne", 0, 0, anchor="tile", z_group=TILE_OVERLAY_GROUP
+            )
+        if neighbor_terrain["S"] != "sea" and neighbor_terrain["SW"] == "sea":
+            self.make_feature_sprite(
+                "terrain.features.shore_out_nw", 0, 0, anchor="tile", z_group=TILE_OVERLAY_GROUP
+            )
+        if neighbor_terrain["SE"] != "sea" and neighbor_terrain["S"] == "sea":
+            self.make_feature_sprite(
+                "terrain.features.shore_out_w", 0, 0, anchor="tile", z_group=TILE_OVERLAY_GROUP
+            )
+        if neighbor_terrain["S"] != "sea" and neighbor_terrain["SW"] != "sea":
+            self.make_feature_sprite(
+                "terrain.features.shore_in_sw", 0, 0, anchor="tile", z_group=TILE_OVERLAY_GROUP
+            )
+        if neighbor_terrain["S"] != "sea" and neighbor_terrain["SE"] != "sea":
+            self.make_feature_sprite(
+                "terrain.features.shore_in_se", 0, 0, anchor="tile", z_group=TILE_OVERLAY_GROUP
+            )
+        if neighbor_terrain["SE"] != "sea" and neighbor_terrain["NE"] != "sea":
+            self.make_feature_sprite(
+                "terrain.features.shore_in_e", 0, 0, anchor="tile", z_group=TILE_OVERLAY_GROUP
+            )
+        if neighbor_terrain["N"] != "sea" and neighbor_terrain["NE"] != "sea":
+            self.make_feature_sprite(
+                "terrain.features.shore_in_ne", 0, 0, anchor="tile", z_group=TILE_OVERLAY_GROUP
+            )
+        if neighbor_terrain["SW"] != "sea" and neighbor_terrain["NW"] != "sea":
+            self.make_feature_sprite(
+                "terrain.features.shore_in_w", 0, 0, anchor="tile", z_group=TILE_OVERLAY_GROUP
+            )
+        if neighbor_terrain["NW"] != "sea" and neighbor_terrain["N"] != "sea":
+            self.make_feature_sprite(
+                "terrain.features.shore_in_nw", 0, 0, anchor="tile", z_group=TILE_OVERLAY_GROUP
+            )
+
 
     def is_similar_terrain(self, direction):
         d = DIRECTIONS[direction]
@@ -480,6 +533,7 @@ class SimpleHexMoveRules(object):
         return [(x + i, y + j) for i, j in self.adjacent_diffs]
 
     def isadjacent(self, from_x, from_y, to_x, to_y):
+        print (to_x - from_x, to_y - from_y)
         return (to_x - from_x, to_y - from_y) in self.adjacent_diffs
 
     def getcost(self, from_x, from_y, to_x, to_y):
@@ -491,7 +545,10 @@ class SimpleHexMoveRules(object):
     def get_distance(self, from_x, from_y, to_x, to_y):
         x_change = to_x - from_x
         y_change = to_y - from_y
-        return max([abs(x_change), abs(y_change), abs(x_change - y_change)])
+        if x_change * y_change <= 0:
+            return max([abs(x_change), abs(y_change)])
+        else:
+            return abs(x_change + y_change)
 
 
 class DijkstraBase(object):

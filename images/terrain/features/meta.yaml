@@ -20,3 +20,39 @@ components:
   - name: sea_border_nw
     tile_x: 35
     tile_y: 16
+  - name: shore_out_sw
+    tile_x: 28
+    tile_y: 23
+  - name: shore_out_se
+    tile_x: -1
+    tile_y: 23
+  - name: shore_out_e
+    tile_x: 27
+    tile_y: -5
+  - name: shore_out_ne
+    tile_x: -1
+    tile_y: -12
+  - name: shore_out_nw
+    tile_x: 28
+    tile_y: -12
+  - name: shore_out_w
+    tile_x: -18
+    tile_y: -5
+  - name: shore_in_sw
+    tile_x: 27
+    tile_y: -5
+  - name: shore_in_se
+    tile_x: -1
+    tile_y: -5
+  - name: shore_in_e
+    tile_x: -27
+    tile_y: 8
+  - name: shore_in_w
+    tile_x: 34
+    tile_y: 8
+  - name: shore_in_ne
+    tile_x: -2
+    tile_y: 16
+  - name: shore_in_nw
+    tile_x: 27
+    tile_y: 16
