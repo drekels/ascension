@@ -27,7 +27,7 @@ SE_HEX_LINE = (
     1 - conf.tile_height / 2 - conf.tile_point_slope*(conf.tile_width - 1)
 )
 NE_HEX_LINE = (
-    conf.tile_point_slope, 1,
+    -conf.tile_point_slope, 1,
     1 - conf.tile_height / 2 + conf.tile_point_slope*(conf.tile_width - 1)
 )
 

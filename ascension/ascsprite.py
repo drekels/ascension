@@ -5,6 +5,7 @@ import math
 from datetime import timedelta
 from math import floor, ceil
 import os
+from threading import Lock
 
 from pyglet.text import Label
 from sprite.component import SpriteComponent
@@ -29,8 +30,8 @@ ON_TRANSITION_END = ON_ANIMATION_END
 
 class TransitionEngine(object):
 
-    def __init__(self, sprite, delete_after=False, end_callback=None, callbacks={}):
-        self.delete_after = delete_after
+    def __init__(self, sprite, remove_after=False, end_callback=None, callbacks={}):
+        self.remove_after = remove_after
         self.sprite = sprite
         for hook, callback_list in callbacks.items():
             for callback in callback_list:
@@ -40,8 +41,8 @@ class TransitionEngine(object):
                 end_callback = [end_callback]
             for callback in end_callback:
                 self.add_end_callback(callback)
-        if delete_after:
-            self.add_end_callback(sprite.delete)
+        if remove_after:
+            self.add_end_callback(Callback(SpriteManager.remove_sprite, self.sprite))
         self.add_end_callback(RemoveEngineCallback(self.sprite, self))
 
 
@@ -592,16 +593,12 @@ class Sprite(BaseSprite):
         self.anchor_x, self.anchor_y = self.component.get_anchor(self.anchor)
         self.displacement_x = displacement_x
         self.displacement_y = displacement_y
-        if not self.pyglet_sprite:
-            draw_x, draw_y, draw_z = self.get_pyglet_xyz()
-            self.initialize_pyglet_sprite(
-                image=self.image, draw_x=draw_x, draw_y=draw_y, draw_z=draw_z,
-            )
-        else:
+        if self.pyglet_sprite:
             self.pyglet_sprite.image = self.image
         self.xyz_updated = True
 
-    def initialize_pyglet_sprite(self, image, draw_x, draw_y, draw_z):
+    def initialize_pyglet_sprite(self):
+        draw_x, draw_y, draw_z = self.get_pyglet_xyz()
         self.pyglet_sprite = pyglet.sprite.Sprite(
             self.image, x=draw_x, y=draw_y, order=draw_z, batch=SpriteManager.batch,
         )
@@ -667,6 +664,10 @@ class SpriteManager(object):
     def __init__(self):
         self.load_atlas()
         self.sprites = []
+        self.sprites_to_add = []
+        self.sprites_to_add_lock = Lock()
+        self.sprites_to_remove = []
+        self.sprites_to_remove_lock = Lock()
         self.batch = pyglet.graphics.Batch()
 
     def load_atlas(self):
@@ -694,17 +695,33 @@ class SpriteManager(object):
         return self.components[component_name]
 
     def add_sprite(self, sprite):
-        self.sprites.append(sprite)
-        if hasattr(sprite, "subsprites"):
-            for subsprite in sprite.subsprites:
-                self.add_sprite(subsprite)
+        self.sprites_to_add.append(sprite)
+        subsprites = hasattr(sprite, "subsprites") and sprite.subsprites or []
+        for subsprite in subsprites:
+            self.add_sprite(subsprite)
 
     def remove_sprite(self, sprite):
-        for subsprite in sprite.subsprites:
+        self.sprites_to_remove.append(sprite)
+        subsprites = hasattr(sprite, "subsprites") and sprite.subsprites or []
+        for subsprite in subsprites:
             self.remove_sprite(subsprite)
-        self.sprites.remove(sprite)
 
     def draw_sprites(self, offset):
+        self.sprites_to_add_lock.acquire(True)
+        sprites = self.sprites_to_add
+        self.sprites_to_add = []
+        self.sprites_to_add_lock.release()
+        for sprite in sprites:
+            if hasattr(sprite, "initialize_pyglet_sprite"):
+                sprite.initialize_pyglet_sprite()
+            self.sprites.append(sprite)
+        self.sprites_to_remove_lock.acquire(True)
+        sprites = self.sprites_to_remove
+        self.sprites_to_remove = []
+        self.sprites_to_remove_lock.release()
+        for sprite in sprites:
+            sprite.delete()
+            self.sprites.remove(sprite)
         self.batch.draw()
 
     def tick(self, time_passed):

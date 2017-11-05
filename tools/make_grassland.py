@@ -6,15 +6,11 @@ from tools.util import TerrainGenerator
 
 class GrasslandGenerator(TerrainGenerator):
     perlin_setup = [
-        {"weight": Decimal('0.5'), "dimensions": (4, 70), "seed": 32},
-        {"weight": Decimal('0.5'), "dimensions": (30, 150), "seed": 89},
+        {"weight": Decimal('1.0'), "dimensions": (12, 40), "seed": 64},
     ]
     color_map = [
-        (Decimal('0.04'), (156, 124, 33)),
-        (Decimal('0.04'), (169, 135, 35)),
-        (Decimal('0.25'), (129, 158, 38)),
-        (Decimal('0.42'), (138, 169, 40)),
-        (Decimal('0.25'), (149, 182, 44)),
+        (Decimal('0.50'), (65, 131, 32)),
+        (Decimal('0.50'), (71, 145, 35)),
     ]
     group_name = "grassland"
     progress_bar_sleep = 1

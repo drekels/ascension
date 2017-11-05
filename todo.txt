@@ -1,6 +1,6 @@
 
 Sprite infrastructure
- * Create shared state sprites
+ * Create synced Sprites
 
 Sprites
  * Draw animations for Tyranasour
@@ -8,16 +8,14 @@ Sprites
  * Draw animations for Horse Rider
 
 Tiles
- * Render sea edges
+ * Create / Delete tiles that are out of view
+ * Wrap tiles
  * Redraw Mountain features
- * Draw Grasslands
  * Draw wastes + features + arrange
  * Draw Badlands features + arrange
  * Draw Dunes
  * Draw Swamps + features + arrange
  * Draw jungle features + arrange
- * Create / Delete tiles that are out of view
- * Wrap tiles
 
 GUI
  * Menus
@@ -30,5 +28,5 @@ Units
  * Unit group selection
 
 Villages
- * Draw and put in village tile features
+ * Draw Capitol
  * Turn units invisble when they enter villages
