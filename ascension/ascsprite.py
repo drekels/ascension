@@ -1,11 +1,11 @@
 import pyglet
 import logging
+import gc
 import yaml
 import math
 from datetime import timedelta
 from math import floor, ceil
 import os
-from threading import Lock
 
 from pyglet.text import Label
 from sprite.component import SpriteComponent
@@ -342,8 +342,13 @@ def transition_engine(func):
 
 
 class BaseSprite(object):
+    instance_count = 0
 
     def __init__(self, component_name=None, anchor="center"):
+        BaseSprite.instance_count += 1
+        LOG.debug("Sprite created, class: {} component: {} count: {}".format(
+            type(self), component_name, BaseSprite.instance_count
+        ))
         self.component = None
         self.transition_engines = []
         self.animation_player = None
@@ -356,12 +361,17 @@ class BaseSprite(object):
         if component_name:
             self.set_component(component_name, anchor=anchor)
 
+    def __del__(self, *args, **kwargs):
+        BaseSprite.instance_count -= 1
+        LOG.debug("Sprite deleted, class: {} component: {} count: {}".format(
+            type(self), self.component and self.component.name, BaseSprite.instance_count
+        ))
+
     def delete(self, extra_time=timedelta(0)):
         self.deleted = True
         self.transition_engines = []
         self.animation_player = None
         self.animation = None
-        SpriteManager.remove_sprite(self)
 
     def __unicode__(self):
         return "{classname}(x={x}, y={y}, {component})".format(
@@ -472,8 +482,7 @@ class SpriteMaster(BaseSprite):
 
     def delete(self, extra_time=timedelta(0)):
         super(SpriteMaster, self).delete(extra_time=extra_time)
-        for follower in list(self.sprite_followers):
-            follower.delete()
+        self.sprite_followers = []
 
     def add_follower(self, follower):
         if follower in self.sprite_followers:
@@ -514,7 +523,6 @@ class SpriteMaster(BaseSprite):
         )
 
 
-
 class Sprite(BaseSprite):
 
     def __init__(self, x=0, y=0, z_group=0, parent=None, master=None, opacity=255, **kwargs):
@@ -535,16 +543,15 @@ class Sprite(BaseSprite):
         if master:
             self.set_master(master)
 
-    def delete(self, extra_time=timedelta(0)):
+    def delete(self, extra_time=0):
         super(Sprite, self).delete(extra_time=extra_time)
-        for subsprite in self.subsprites:
-            subsprite.delete()
-        self.subsprites = []
         if self.pyglet_sprite:
             self.pyglet_sprite.delete()
             self.pyglet_sprite = None
         if self.master:
             self.master.remove_follower(self)
+        self.parent = None
+        self.subsprites = None
 
     def tick(self, time_passed):
         super(Sprite, self).tick(time_passed)
@@ -664,11 +671,10 @@ class SpriteManager(object):
     def __init__(self):
         self.load_atlas()
         self.sprites = []
-        self.sprites_to_add = []
-        self.sprites_to_add_lock = Lock()
-        self.sprites_to_remove = []
-        self.sprites_to_remove_lock = Lock()
-        self.batch = pyglet.graphics.Batch()
+        self.sprite_sources = []
+        self.batch = None
+        self.alive = True
+        self.next_report_in = 0.0
 
     def load_atlas(self):
         self.component_images = {}
@@ -691,37 +697,32 @@ class SpriteManager(object):
                 stage.component = self.components[stage.component_name]
             self.animations[animation.name] = animation
 
+    def initialize(self):
+        self.batch = pyglet.graphics.Batch()
+
     def get_component(self, component_name):
         return self.components[component_name]
 
+    def add_sprite_source(self, source):
+        self.sprite_sources.append(source)
+
     def add_sprite(self, sprite):
-        self.sprites_to_add.append(sprite)
+        if hasattr(sprite, "initialize_pyglet_sprite"):
+            sprite.initialize_pyglet_sprite()
+        self.sprites.append(sprite)
+
         subsprites = hasattr(sprite, "subsprites") and sprite.subsprites or []
         for subsprite in subsprites:
             self.add_sprite(subsprite)
 
     def remove_sprite(self, sprite):
-        self.sprites_to_remove.append(sprite)
+        self.sprites.remove(sprite)
         subsprites = hasattr(sprite, "subsprites") and sprite.subsprites or []
         for subsprite in subsprites:
             self.remove_sprite(subsprite)
+        sprite.delete()
 
-    def draw_sprites(self, offset):
-        self.sprites_to_add_lock.acquire(True)
-        sprites = self.sprites_to_add
-        self.sprites_to_add = []
-        self.sprites_to_add_lock.release()
-        for sprite in sprites:
-            if hasattr(sprite, "initialize_pyglet_sprite"):
-                sprite.initialize_pyglet_sprite()
-            self.sprites.append(sprite)
-        self.sprites_to_remove_lock.acquire(True)
-        sprites = self.sprites_to_remove
-        self.sprites_to_remove = []
-        self.sprites_to_remove_lock.release()
-        for sprite in sprites:
-            sprite.delete()
-            self.sprites.remove(sprite)
+    def draw_sprites(self):
         self.batch.draw()
 
     def tick(self, time_passed):
@@ -729,7 +730,22 @@ class SpriteManager(object):
             try:
                 sprite.tick(time_passed)
             except Exception as e:
-                LOG.exception("Failed to tick sprite {}:{}".format(sprite, e))
+                LOG.exception("Failed to tick sprite {}:".format(sprite))
+        for source in self.sprite_sources:
+            try:
+                self.update_source(source)
+            except Exception as e:
+                LOG.exception("Failed to update source {}:".format(source))
+        if conf.sprite_manager_report_frequency:
+            self.next_report_in -= time_passed
+            if self.next_report_in <= 0:
+                self.do_report()
+                self.next_report_in = float(conf.sprite_manager_report_frequency)
+
+    def do_report(self):
+        LOG.info("SPRITE MANAGER REPORT:")
+        LOG.info("  sprite instance count: {}".format(BaseSprite.instance_count))
+        LOG.info("END SPRITE MANAGER REPORT")
 
     def get_adjusted_position(self, x, y, offset):
         x = ceil((x - offset[0]) / conf.sprite_scale)
@@ -741,3 +757,15 @@ class SpriteManager(object):
 
     def get_component_image(self, component_name):
         return self.component_images[component_name]
+
+    def update_source(self, source):
+        LOG.debug("Adding sprites from source '{}'".format(source))
+        new_sprites = list(source.get_new_sprites())
+        for sprite in new_sprites:
+            LOG.debug("Adding sprite {}".format(sprite))
+            self.add_sprite(sprite)
+        LOG.debug("Removing sprites from source '{}'".format(source))
+        remove_sprites = list(source.get_sprites_to_remove())
+        for sprite in remove_sprites:
+            LOG.debug("Removing sprite {}".format(sprite))
+            self.remove_sprite(sprite)

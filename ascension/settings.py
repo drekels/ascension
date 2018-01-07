@@ -117,6 +117,50 @@ game_settings = SettingSet([
         "default": False,
         "parse": bool,
     },
+    {
+        "name": "scroller_sleep",
+        "default": 0.5,
+        "parse": float,
+    },
+    {
+        "name": "quit_sleep",
+        "default": 0.05,
+        "parse": float,
+    },
+    {
+        "name": "max_quit_wait_time",
+        "default": 5.0,
+        "parse": float,
+    },
+    {
+        "name": "tilemap_refresh_stages",
+        "default": 10,
+        "parse": int,
+    },
+    {
+        "name": "unitset_refresh_stages",
+        "default": 10,
+        "parse": int,
+    },
+    {
+        "name": "scroller_mode",
+        "default": "DYNAMIC",
+    },
+    {
+        "name": "fixed_scroller_width",
+        "default": 50,
+        "parse": int,
+    },
+    {
+        "name": "fixed_scroller_height",
+        "default": 25,
+        "parse": int,
+    },
+    {
+        "name": "sprite_manager_report_frequency",
+        "default": 0.0,
+        "parse": float
+    },
 ])
 
 player_settings = SettingSet([

@@ -5,12 +5,22 @@ logging:
             handlers:
                 - console
             level: INFO
+            propagate: true
+        ascension.ascsprite:
+            handlers:
+                - console
+            level: INFO
             propagate: false
-        # ascension.tilemap:
-        #     handlers:
-        #         - console
-        #     level: DEBUG
-        #     propagate: false
+        ascension.util:
+            handlers:
+                - console
+            level: INFO
+            propagate: false
+        ascension.tilemap:
+            handlers:
+                - console
+            level: INFO
+            propogate: false
     handlers:
         console: 
             class: logging.StreamHandler
@@ -18,9 +28,13 @@ logging:
     formatters:
         console:
             (): pykfs.kfslog.KFSFormatter
-            fmt: "> {timeplus} > {nameplus} > {levelplus} {message}"
+            fmt: "> {timeplus} > {nameplus} > {threadName} > {levelplus} {message}"
             color: true
 disabled_profilers:
     - SORT_SPRITES
 target_frame_rate: 60
 reveal_map: true
+scroller_mode: DYNAMIC
+fixed_scroller_width: 50
+fixed_scroller_height: 25
+sprite_manager_report_frequency: 5

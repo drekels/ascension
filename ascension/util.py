@@ -1,5 +1,12 @@
+from contextlib import contextmanager
+import logging
+
+
 NO_VALUE = "NO_VALUE"
 NO_DEFAULT = "NO_VALUE"
+
+
+LOG = logging.getLogger(__name__)
 
 
 class IllegalActionException(Exception):
@@ -66,3 +73,31 @@ def insert_sort(almost_sorted):
             almost_sorted[j+1] = almost_sorted[j]
             j = j - 1
         almost_sorted[j+1] = val
+
+
+class WouldBlockError(Exception):
+
+    def __init__(self):
+        super(WouldBlockError, self).__init__(
+            self, "non_blocking_lock failed to acquire, skiping body..."
+        )
+
+
+@contextmanager
+def non_blocking_lock(lock):
+    if not lock.acquire(blocking=False):
+        raise WouldBlockError()
+    try:
+        yield lock
+    finally:
+        lock.release()
+
+
+def do_non_blocking(lock, action, *args, **kwargs):
+    value = None
+    try:
+        with non_blocking_lock(lock):
+            value = action(*args, **kwargs)
+    except WouldBlockError:
+        pass
+    return value

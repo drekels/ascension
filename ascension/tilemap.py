@@ -13,6 +13,7 @@ from ascension.ascsprite import (
 from ascension.util import Singleton
 from ascension.perlin import TileablePerlinGenerator
 from ascension.settings import AscensionConf as conf
+from ascension.window import MainWindowManager
 
 LOG = logging.getLogger(__name__)
 
@@ -59,6 +60,8 @@ class TileMap(object):
         self.moverules = SimpleHexMoveRules()
         self.reset_tiles()
         self.load_feature_maps()
+        self.new_refresh_stage = 0
+        self.remove_refresh_stage = 0
 
     def load_feature_maps(self):
         self.feature_maps = {}
@@ -220,10 +223,6 @@ class TileMap(object):
     def hastile(self, x, y):
         return x in self.tile_map and y in self.tile_map[x]
 
-    def add_tile_sprites(self, sprite_manager, anchor=(0, 0)):
-        for tile in self.tiles:
-            self.add_tile_sprite(tile, sprite_manager)
-
     def get_vert_x_shift(self):
         return conf.tile_height / 2
 
@@ -232,9 +231,6 @@ class TileMap(object):
         x_pos = anchor[0] + x * (width - self.horz_point_width)
         y_pos = anchor[1] + y * height + x * self.get_vert_x_shift()
         return x_pos, y_pos
-
-    def add_tile_sprite(self, tile, sprite_manager):
-        tile.initialize_sprites()
 
     def get_clicked_tile(self, x, y):
         LOG.debug("Entering get_clicked_tile...")
@@ -286,6 +282,20 @@ class TileMap(object):
             tile = self.gettile(*e)
             tile.edge()
 
+    def get_new_sprites(self):
+        for i in range(self.new_refresh_stage, len(self.tiles), conf.tilemap_refresh_stages):
+            tile = self.tiles[i]
+            for sprite in tile.get_new_sprites():
+                yield sprite
+        self.new_refresh_stage = (self.new_refresh_stage + 1) % conf.tilemap_refresh_stages
+
+    def get_sprites_to_remove(self):
+        for i in range(self.remove_refresh_stage, len(self.tiles), conf.tilemap_refresh_stages):
+            tile = self.tiles[i]
+            for sprite in tile.get_sprites_to_remove():
+                yield sprite
+        self.remove_refresh_stage = (self.remove_refresh_stage + 1) % conf.tilemap_refresh_stages
+
 
 class Tile(object):
 
@@ -297,11 +307,13 @@ class Tile(object):
         self.imgnum = (self.x % 2) * 2 + (self.y - self.x / 2) % 2
         self.sprite = None
         self.shroud_sprite = None
+        self.shroud_gone = False
         self.coor_sprite = None
         self.feature_map = None
         self.locale = None
         self.explored = False
         self.edged = False
+        self.is_in_view = False
         self.tile_bunch_direction = get_tile_bunch_position(self.x, self.y)
         self.tile_bunch_center = get_tile_bunch_center(self.x, self.y)
 
@@ -309,11 +321,31 @@ class Tile(object):
         xd, yd = DIRECTIONS[direction]
         return TileMap.gettile(self.x + xd, self.y + yd)
 
-    def initialize_sprites(self):
-        if self.explored:
+    def get_new_sprites(self):
+        self.is_in_view = MainWindowManager.is_position_in_view(
+            self.x_pos, self.y_pos, conf.tile_width * 1.5, conf.tile_height * 3.0
+        )
+        if not self.is_in_view:
+            pass
+        elif self.explored and not self.sprite:
             self.make_sprite()
-        elif self.edged:
+            yield self.sprite
+        elif self.edged and not self.explored and not self.shroud_sprite:
             self.make_shroud_sprite()
+            yield self.shroud_sprite
+
+    def get_sprites_to_remove(self):
+        if not self.is_in_view:
+            if self.shroud_sprite:
+                yield self.shroud_sprite
+                self.shroud_sprite = None
+            if self.sprite:
+                yield self.sprite
+                self.feature_sprites = []
+                self.sprite = None
+        elif self.shroud_sprite and self.shroud_gone:
+            yield self.shroud_sprite
+            self.shroud_sprite = None
 
     def make_sprite(self):
         component_name = "terrain.grassland.grassland_{:0>2}_00".format(self.imgnum)
@@ -335,8 +367,6 @@ class Tile(object):
         if self.locale == 'village':
             self.make_locale_sprite()
 
-        SpriteManager.add_sprite(self.sprite)
-
     def get_z_group(self):
         return self.terrain == 'sea' and SEA_GROUP or TILE_GROUP
 
@@ -348,12 +378,12 @@ class Tile(object):
 
     def explore(self, source):
         self.explored = True
-        self.remove_shroud(source)
-        self.make_sprite()
+        if self.shroud_sprite:
+            self.remove_shroud(source)
 
     def edge(self):
         self.edged = True
-        self.make_shroud_sprite()
+        self.shroud_gone = False
 
     def remove_shroud(self, source):
         dir_x = self.x - source[0]
@@ -366,16 +396,17 @@ class Tile(object):
         )
         self.shroud_sprite.fade(
             static_delay=conf.shroud_fade_delay, duration=conf.shroud_fade_time,
-            delete_after=True
+            end_callback=self.set_shroud_to_gone,
         )
-        self.shroud_sprite = None
+
+    def set_shroud_to_gone(self, extra_time=None):
+        self.shroud_gone = True
 
     def make_shroud_sprite(self):
         self.shroud_sprite = Sprite(
             x=self.x_pos, y=self.y_pos, component_name="terrain.shroud",
             z_group=UNIT_GROUP,
         )
-        SpriteManager.add_sprite(self.shroud_sprite)
 
     def make_coor_sprite(self):
         self.coor_sprite = TextSprite(
@@ -431,8 +462,6 @@ class Tile(object):
                 "terrain.features.shore_out_e", 0, 0, anchor="tile", z_group=TILE_OVERLAY_GROUP
             )
         if neighbor_terrain["S"] != "sea" and neighbor_terrain["SE"] == "sea":
-            if (self.x, self.y) == (6, -10):
-                print "FOOOOBAR"
             self.make_feature_sprite(
                 "terrain.features.shore_out_ne", 0, 0, anchor="tile", z_group=TILE_OVERLAY_GROUP
             )
@@ -533,7 +562,6 @@ class SimpleHexMoveRules(object):
         return [(x + i, y + j) for i, j in self.adjacent_diffs]
 
     def isadjacent(self, from_x, from_y, to_x, to_y):
-        print (to_x - from_x, to_y - from_y)
         return (to_x - from_x, to_y - from_y) in self.adjacent_diffs
 
     def getcost(self, from_x, from_y, to_x, to_y):

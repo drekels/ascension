@@ -4,6 +4,7 @@ import random
 from ascension.util import Singleton, insert_sort, IllegalActionException
 from ascension.ascsprite import SpriteManager, Sprite, UNIT_GROUP
 from ascension.tilemap import TileMap
+from ascension.window import MainWindowManager
 from ascension.settings import AscensionConf as conf, PlayerConf
 
 
@@ -24,10 +25,20 @@ class UnitSet(object):
 
     def __init__(self):
         self.unit_groups = []
+        self.unit_group_sprites = {}
 
     def add_unit_group(self, unit_group):
         self.unit_groups.append(unit_group)
-        unit_group.add_sprites(SpriteManager)
+
+    def get_new_sprites(self):
+        for unit_group in self.unit_groups:
+            for sprite in unit_group.get_new_sprites():
+                yield sprite
+
+    def get_sprites_to_remove(self):
+        for unit_group in self.unit_groups:
+            for sprite in unit_group.get_sprites_to_remove():
+                yield sprite
 
 
 class UnitGroup(object):
@@ -39,6 +50,7 @@ class UnitGroup(object):
         self.intransit = False
         self.facing = "right"
         self.positions = {}
+        self.is_in_view = False
         for unit_name, position in units:
             self.add_unit(unit_name, position)
 
@@ -48,12 +60,23 @@ class UnitGroup(object):
         self.positions[unit] = position
         insert_sort(self.units)
 
-    def add_sprites(self, sprite_manager):
-        tile_position = self.get_tile_position(self.x, self.y)
-        for unit in self.units:
-            sprite = unit.sprite
-            sprite.x, sprite.y = self.get_unit_position(unit, tile_position)
-            sprite_manager.add_sprite(sprite)
+    def get_new_sprites(self):
+        tile_x, tile_y = self.get_tile_position(self.x, self.y)
+        is_position_in_view = MainWindowManager.is_position_in_view(
+            tile_x, tile_y, conf.tile_width * 1.5, conf.tile_height * 3.0
+        )
+        self.is_in_view = is_position_in_view or self.intransit
+        if self.is_in_view:
+            for unit in self.units:
+                for sprite in unit.get_new_sprites():
+                    sprite.x, sprite.y = self.get_unit_position(unit, (tile_x, tile_y))
+                    yield sprite
+
+    def get_sprites_to_remove(self):
+        if not self.is_in_view:
+            for unit in self.units:
+                for sprite in unit.get_sprites_to_remove():
+                    yield sprite
 
     def get_unit_position(self, unit, tile_position):
         xdiff, ydiff = POSITIONS[self.positions[unit]]
@@ -120,6 +143,8 @@ class Unit(object):
         self.make_sprite()
         self.moving = False
         self.unit_group = unit_group
+        self.sprite = None
+        self.sprite_added = False
 
     def make_sprite(self):
         stand_right = self.get_component("stand_right")
@@ -163,3 +188,19 @@ class Unit(object):
 
     def get_default_walk_animation(self):
         return self.get_walk_animation("right")
+
+    def get_new_sprites(self):
+        if not self.sprite:
+            self.sprite_added = True
+            self.make_sprite()
+            yield self.sprite
+        elif not self.sprite_added:
+            self.sprite_added = True
+            yield self.sprite
+
+    def get_sprites_to_remove(self):
+        if self.sprite:
+            if self.sprite_added:
+                self.sprite_added = False
+                yield self.sprite
+            self.sprite = None

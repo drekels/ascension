@@ -18,12 +18,21 @@ class MouseHandler:
 
     def on_mouse_press(self, x, y, button, modifiers):
         LOG.debug("mouse pressed {} {} {} {}".format(x, y, button, modifiers))
+        try:
+            pass
+        except Exception:
+            LOG.exception("Error envountered on mouse press:")
 
     def on_mouse_release(self, x, y, button, modifiers):
         LOG.debug("mouse released {} {} {} {}".format(x, y, button, modifiers))
-        clicked = self.get_clicked_tile(x, y)
-        unit_set = UnitSet.unit_groups[0]
-        unit_set.move(*clicked)
+        try:
+            clicked = self.get_clicked_tile(x, y)
+            unit_set = UnitSet.unit_groups[0]
+            unit_set.move(*clicked)
+        except Exception:
+            LOG.exception("Error envountered on mouse release:")
+
+
 
     def get_clicked_tile(self, x, y):
         sprite_x, sprite_y = MainWindowManager.get_sprite_from_screen(x, y)

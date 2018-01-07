@@ -32,6 +32,8 @@ class MainWindowManager(object):
         self.tick_listeners = []
         self.set_background_color()
         self.position_updated = True
+        self.sprite_view_width = conf.fixed_scroller_width
+        self.sprite_view_height = conf.fixed_scroller_height
 
     def tick(self, time_passed):
         ProfilerManager.start("TICK")
@@ -69,8 +71,13 @@ class MainWindowManager(object):
 
     def open(self):
         LOG.info("Window '{}' opened".format(self))
-        self.pyglet_window = pyglet.window.Window(width=self.width, height=self.height, vsync=False)
+        self.pyglet_window = pyglet.window.Window(
+            width=self.width, height=self.height, vsync=False
+        )
+        self.on_resize(self.width, self.height)
         self.pyglet_window.event(self.on_draw)
+        self.pyglet_window.event(self.on_close)
+        self.pyglet_window.event(self.on_resize)
         self.xdiff = -self.pyglet_window.width / conf.sprite_scale / 2
         self.ydiff = -self.pyglet_window.height / conf.sprite_scale / 2
         self.initializeGL()
@@ -83,12 +90,23 @@ class MainWindowManager(object):
         clock.schedule_interval(self.tick, 1.0 / conf.target_frame_rate)
 
     def on_draw(self):
-        ProfilerManager.start("MAIN_WINDOW_DRAW", targets=self.profiler_targets)
-        self.pyglet_window.clear()
-        if self.position_updated:
-            self.translate()
-        SpriteManager.draw_sprites(self.get_window_offset())
-        ProfilerManager.stop("MAIN_WINDOW_DRAW")
+        try:
+            ProfilerManager.start("MAIN_WINDOW_DRAW", targets=self.profiler_targets)
+            self.pyglet_window.clear()
+            if self.position_updated:
+                self.translate()
+            SpriteManager.draw_sprites()
+            ProfilerManager.stop("MAIN_WINDOW_DRAW")
+        except Exception as e:
+            LOG.exception(e)
+            from ascension.game import get_game
+            import signal
+            get_game().quit(signal.SIGQUIT)
+
+    def on_resize(self, width, height):
+        if conf.scroller_mode == "DYNAMIC":
+            self.sprite_view_width = float(width) / conf.sprite_scale / 2
+            self.sprite_view_height = float(height) / conf.sprite_scale / 2
 
     def translate(self):
         xdiffint = int(self.xdiff * conf.sprite_scale)
@@ -115,6 +133,15 @@ class MainWindowManager(object):
         offset = self.get_window_offset()
         return SpriteManager.get_adjusted_position(x, y, offset)
 
+    def on_close(self):
+        LOG.info("User closed window")
+        from ascension.game import Ascension as game
+        game.quit(None, None)
+
+    def is_position_in_view(self, x, y, extra_x=0.0, extra_y=0.0):
+        xdiff = abs(x - self.x) - extra_x
+        ydiff = abs(y - self.y) - extra_y
+        return xdiff <= self.sprite_view_width and ydiff <= self.sprite_view_height
 
 
 def drawRect(x, y=None, width=None, height=None):
