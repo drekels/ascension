@@ -52,7 +52,7 @@ def get_bitlist(number, min_digits=0):
 
 
 class TileablePerlinGenerator(object):
-    seed = 0
+    seed = False
     dimensions = [1, 2, 3]
 
     def __init__(self, **kwargs):
@@ -61,7 +61,8 @@ class TileablePerlinGenerator(object):
         self.generate_vectors()
 
     def generate_vectors(self):
-        random.seed(self.seed)
+        if self.seed:
+            random.seed(self.seed)
         self.vectors = {}
         for coor in get_coor_set(self.dimensions):
             self.vectors[tuple(coor)] = get_random_vector(len(self.dimensions))

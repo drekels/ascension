@@ -73,7 +73,7 @@ class Ascension(object):
     def initialize(self):
         self.setup_signal()
         try:
-            TileMap.generate_map()
+            TileMap.generate_map(width=conf.map_width, height=conf.map_height)
             unit_group = UnitGroup(0, 0, units=[
                 ("sword", "top_left"),
                 ("spear", "top"),

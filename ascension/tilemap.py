@@ -1,5 +1,6 @@
 import logging
 import math
+import random
 from datetime import timedelta
 from decimal import Decimal
 
@@ -77,9 +78,12 @@ class TileMap(object):
         self.tiles = []
         self.count = 0
 
-    def generate_map(self):
+    def generate_map(self, width, height, seed=111):
+        if width % 14 or height % 14:
+            raise Exception("Map width and height must be multiples of 14")
+        random.seed(seed)
         self.create_sprite_masters()
-        self.generate_square()
+        self.generate_square(width=width, height=height)
         self.determine_outer_limits()
         self.assign_terrain()
         if conf.reveal_map:
@@ -116,8 +120,8 @@ class TileMap(object):
             self.sea_sprite_masters.append(sprite_master)
             SpriteManager.add_sprite(sprite_master)
 
-    def generate_square(self, width=14):
-        self.width, self.height = width, width
+    def generate_square(self, width=14, height=14):
+        self.width, self.height = width, height
         self.min_x = -(self.width - 1) / 2
         self.max_x = (self.width + 1)/ 2
         self.min_y = -(self.height - 1) / 2
@@ -143,41 +147,65 @@ class TileMap(object):
         return self.feature_maps[name]
 
     def assign_terrain(self):
+        self.tiles_left = list(self.tiles)
         self.assign_sea()
-        self.assign_forests()
         self.assign_mountains()
+        self.assign_forests()
         self.assign_village()
 
-    def assign_forests(self):
-        for tile in [(1, 1), (0, 2), (0, 1), (1, 0)]:
-            forest_tile = self.gettile(*tile)
-            forest_tile.terrain = 'forest'
+    def assign_terrain_perlin(self, terrain, percentage_of_remaining, size_multiplier):
+        tile_count = int(len(self.tiles_left) * percentage_of_remaining)
+        perlin_width = size_multiplier * self.width / 14
+        perlin_height = size_multiplier * self.height / 14
+        perlin = TileablePerlinGenerator(dimensions=[perlin_width, perlin_height])
+        values_list = []
+        for tile in self.tiles_left:
+            perlin_value = self.get_map_perlin_value(perlin, tile.x_pos, tile.y_pos)
+            values_list.append((perlin_value, tile))
+        tile_queue = [x[1] for x in sorted(values_list)[:tile_count]]
+        for tile in tile_queue:
+            tile.terrain = terrain
+            self.tiles_left.remove(tile)
 
     def assign_mountains(self):
-        for tile in [(-2, 2), (-3, 2), (-3, 3), (-2, 3)]:
-            mountain_tile = self.gettile(*tile)
-            mountain_tile.terrain = 'mountain'
+        self.assign_terrain_perlin(
+            "mountain", conf.mountain_percentage, conf.mountain_perlin_size_multiplier
+        )
+
+    def assign_forests(self):
+        self.assign_terrain_perlin(
+            "forest", conf.forest_percentage, conf.forest_perlin_size_multiplier
+        )
+
+    def get_map_perlin_value(self, perlin, x_pos, y_pos):
+        if not hasattr(self, "top_edge"):
+            self.generate_map_perlin_helper_values()
+        perlin_x = (x_pos - self.left_edge) / Decimal(self.frame_width)
+        perlin_y = (y_pos - self.bottom_edge) / Decimal(self.frame_height)
+        return perlin.get_value(perlin_x, perlin_y)
+
+    def generate_map_perlin_helper_values(self):
+        self.top_edge = self.max_y_pos
+        self.bottom_edge = self.min_y_pos - self.tile_height/2
+        self.frame_height = self.top_edge - self.bottom_edge
+        self.left_edge = self.min_x_pos - self.tile_width/2 + self.horz_point_width
+        self.right_edge = self.max_x_pos + (self.tile_width+1)/2
+        self.frame_width = self.right_edge - self.left_edge
 
     def assign_sea(self):
-        top_edge = self.max_y_pos
-        bottom_edge = self.min_y_pos - self.tile_height/2
-        frame_height = top_edge - bottom_edge
-        left_edge = self.min_x_pos - self.tile_width/2 + self.horz_point_width
-        right_edge = self.max_x_pos + (self.tile_width+1)/2
-        frame_width = right_edge - left_edge
-        sea_perlin = TileablePerlinGenerator(dimensions=[4, 4], seed=9)
+        perlin_width = conf.sea_perlin_size_multiplier * self.width / 14
+        perlin_height = conf.sea_perlin_size_multiplier * self.height / 14
+        sea_perlin = TileablePerlinGenerator(dimensions=[perlin_width, perlin_height])
         bunch_values = {}
-        for tile in self.tiles:
+        for tile in self.tiles_left:
             bunch = get_tile_bunch_center(tile.x, tile.y)
             bunch_tile = self.gettile(*bunch)
             if bunch_tile and bunch not in bunch_values:
-                perlin_x = (bunch_tile.x_pos - left_edge) / Decimal(frame_width)
-                perlin_y = (bunch_tile.y_pos - bottom_edge) / Decimal(frame_height)
-                perlin_value = sea_perlin.get_value(perlin_x, perlin_y)
+                perlin_value = self.get_map_perlin_value(sea_perlin, bunch_tile.x_pos, bunch_tile.y_pos)
                 bunch_values[bunch] = perlin_value
         ordered_bunches = sorted([(j, i) for i, j in bunch_values.items()])
         bunch_terrains = {}
-        midpoint = len(ordered_bunches) / 2
+        midpoint = int(len(ordered_bunches) * conf.sea_percentage)
         for _, bunch in ordered_bunches[:midpoint]:
             bunch_terrains[bunch] = "sea"
         for _, bunch in ordered_bunches[midpoint:]:
@@ -186,6 +214,8 @@ class TileMap(object):
             bunch = get_tile_bunch_center(tile.x, tile.y)
             bunch = self.get_wrapped_coor(*bunch)
             tile.terrain = bunch and bunch_terrains[bunch] or 'sea'
+            if tile.terrain == 'sea':
+                self.tiles_left.remove(tile)
 
     def assign_village(self):
         for tile in [(-2, 5)]:
@@ -316,6 +346,7 @@ class Tile(object):
         self.is_in_view = False
         self.tile_bunch_direction = get_tile_bunch_position(self.x, self.y)
         self.tile_bunch_center = get_tile_bunch_center(self.x, self.y)
+        self.feature_sprites = None
 
     def get_neighbor(self, direction):
         xd, yd = DIRECTIONS[direction]
@@ -504,7 +535,7 @@ class Tile(object):
         other_x = self.x + d[0]
         other_y = self.y + d[1]
         other = TileMap.gettile(other_x, other_y)
-        return other.terrain == self.terrain
+        return other is not None and other.terrain == self.terrain
 
     def make_locale_sprite(self):
         component_name = "locale.{}".format(self.locale)

@@ -159,7 +159,47 @@ game_settings = SettingSet([
     {
         "name": "sprite_manager_report_frequency",
         "default": 0.0,
-        "parse": float
+        "parse": float,
+    },
+    {
+        "name": "map_width",
+        "default": 42,
+        "parse": int,
+    },
+    {
+        "name": "map_height",
+        "default": 28,
+        "parse": int,
+    },
+    {
+        "name": "sea_perlin_size_multiplier",
+        "default": 4,
+        "parse": int
+    },
+    {
+        "name": "forest_perlin_size_multiplier",
+        "default": 8,
+        "parse": int,
+    },
+    {
+        "name": "mountain_perlin_size_multiplier",
+        "default": 8,
+        "parse": int,
+    },
+    {
+        "name": "sea_percentage",
+        "default": 0.5,
+        "parse": float,
+    },
+    {
+        "name": "mountain_percentage",
+        "default": 0.1,
+        "parse": float,
+    },
+    {
+        "name": "forest_percentage",
+        "default": 0.2,
+        "parse": float,
     },
 ])
 
